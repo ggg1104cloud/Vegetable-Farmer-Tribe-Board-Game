@@ -7,11 +7,17 @@
 纯静态网页，**零依赖、零构建、无后端**：原生 HTML + CSS + ES Module，
 把目录丢到任意静态服务器（或 GitHub Pages）即可游玩。
 
+## ▶ 在线直接玩
+
+**https://ggg1104cloud.github.io/Vegetable-Farmer-Tribe-Board-Game/**
+
+（由 GitHub Pages 从 `main` 分支根目录发布，无需安装任何东西。）
+
 ![开篇封面](docs/screenshots/cover.jpg)
 
 ---
 
-## 快速开始
+## 快速开始（本地）
 
 ```bash
 # 方式一：自带服务（推荐，带 no-cache 头，避免浏览器缓存旧模块）
