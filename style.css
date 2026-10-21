@@ -1755,6 +1755,7 @@ body.resizing iframe,body.resizing img{pointer-events:none}
   .og-strip{gap:6px}
   .og-strip .os-chip{padding:5px 11px;font-size:12.5px}
   .og-strip .og-arrow{display:none}
+}
 
 /* ============================================================
    农耕志 · 图例下方的荣誉入口 + 弹层
