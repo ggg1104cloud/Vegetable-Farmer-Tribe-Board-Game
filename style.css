@@ -1,0 +1,2529 @@
+/* ============================================================
+   菜农部落 · 优美国风立体主题
+   基调：宣纸底 + 青铜鎏金 + 朱砂 + 石青
+   立体手法：多层阴影模拟浮雕、渐变模拟受光、内描边模拟凹陷
+   ============================================================ */
+:root{
+  /* 宣纸与墨 */
+  --paper:      #f4efe3;
+  --paper-2:    #ece5d5;
+  --paper-3:    #e2d9c5;
+  --panel:      #fbf8f0;
+  --panel-hi:   #fffdf7;
+  --ink:        #2e2820;
+  --ink-2:      #5d5344;
+  --ink-3:      #948872;
+  --line:       #d4c8ae;
+
+  /* 国风主色 */
+  --gold:       #b8892e;
+  --gold-hi:    #e5c479;
+  --gold-lo:    #8a6416;
+  --cinnabar:   #c4453a;   /* 朱砂 */
+  --cinnabar-lo:#8c2a20;
+  --bronze:     #4e7350;   /* 石青绿铜 */
+  --bronze-hi:  #87a67e;
+  --azure:      #3f6b8f;   /* 石青 */
+  --wood:       #8a5a2e;
+
+  --radius:     12px;
+  --lift:  0 1px 0 rgba(255,253,247,.9) inset,
+           0 -1px 0 rgba(120,100,60,.14) inset,
+           0 2px 4px rgba(80,60,30,.10),
+           0 8px 20px rgba(80,60,30,.10);
+  --press: 0 2px 6px rgba(80,60,30,.18) inset,
+           0 1px 2px rgba(80,60,30,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+  color:var(--ink);overflow:hidden;font-size:13px;
+  background:
+    radial-gradient(1200px 700px at 50% -8%, #fffdf7 0%, rgba(255,253,247,0) 62%),
+    radial-gradient(900px 600px at 8% 100%, rgba(200,175,120,.16) 0%, rgba(200,175,120,0) 58%),
+    radial-gradient(900px 600px at 95% 100%, rgba(150,175,170,.13) 0%, rgba(150,175,170,0) 58%),
+    repeating-linear-gradient(92deg, rgba(160,140,100,.030) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(2deg,  rgba(160,140,100,.022) 0 1px, transparent 1px 5px),
+    var(--paper);
+}
+
+/* ---------- 顶栏：鎏金匾额 ---------- */
+header{
+  height:60px;display:flex;align-items:center;gap:22px;padding:0 20px;
+  position:relative;z-index:30;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.75) 0%, rgba(255,255,255,0) 42%),
+    linear-gradient(180deg,#f7f1e3 0%,#ece2ca 100%);
+  border-bottom:1px solid var(--line);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.9) inset,
+    0 -2px 0 rgba(184,137,46,.16) inset,
+    0 3px 10px rgba(80,60,30,.12);
+}
+header::after{
+  content:'';position:absolute;left:0;right:0;bottom:0;height:2px;
+  background:linear-gradient(90deg,transparent 0%,var(--gold) 18%,var(--gold-hi) 50%,var(--gold) 82%,transparent 100%);
+  opacity:.7;
+}
+.brand{display:flex;align-items:center;gap:11px}
+.logo{
+  width:38px;height:38px;border-radius:10px;display:grid;place-items:center;
+  font-size:19px;
+  background:linear-gradient(145deg,#d9a63f 0%,#b8892e 46%,#8a6416 100%);
+  box-shadow:
+    0 1px 0 rgba(255,240,200,.7) inset,
+    0 -2px 4px rgba(90,60,10,.35) inset,
+    0 2px 5px rgba(80,60,30,.28);
+  border:1px solid #8a6416;
+}
+.brand h1{
+  font-size:17px;letter-spacing:2px;
+  font-family:"STKaiti","KaiTi","楷体",serif;
+  color:#3a2f1e;
+  text-shadow:0 1px 0 rgba(255,255,255,.85);
+}
+.brand small{color:var(--ink-3);font-size:10.5px;display:block;letter-spacing:1.4px}
+
+.round-info{display:flex;align-items:center;gap:14px;font-size:12px;color:var(--ink-2)}
+.round-info b{color:var(--cinnabar);font-size:13.5px;font-weight:700}
+.round-info .sep{width:1px;height:15px;background:linear-gradient(180deg,transparent,var(--line),transparent)}
+
+.top-actions{margin-left:auto;display:flex;gap:9px;align-items:center}
+
+/* 模式切换（本地对战 / 单机模式） */
+.seg{
+  display:flex;padding:2px;border-radius:10px;gap:2px;
+  background:linear-gradient(180deg,#e2d8be,#d3c6a4);
+  border:1px solid var(--line);
+  box-shadow:0 1px 3px rgba(80,60,30,.16) inset;
+}
+.seg button{
+  padding:6px 13px;border:0;border-radius:8px;cursor:pointer;font-family:inherit;
+  font-size:11.5px;letter-spacing:1px;color:var(--ink-2);
+  background:transparent;transition:.16s;
+}
+.seg button:hover{color:var(--gold-lo)}
+.seg button.on{
+  background:linear-gradient(180deg,#fffaee,#f2e6cc);
+  color:#5a4416;font-weight:600;
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 1px 3px rgba(80,60,30,.18);
+}
+
+.tb{
+  padding:8px 16px;border-radius:9px;font-size:12px;cursor:pointer;
+  font-family:inherit;letter-spacing:1px;color:var(--ink-2);
+  background:linear-gradient(180deg,#fffdf7 0%,#ece2ca 100%);
+  border:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 2px 4px rgba(80,60,30,.12);
+  transition:.16s;
+}
+.tb:hover{border-color:var(--gold);color:var(--gold-lo);transform:translateY(-1px)}
+.tb:active{transform:translateY(0);box-shadow:var(--press)}
+.tb.primary{
+  background:linear-gradient(180deg,#c9503f 0%,#a33a2c 52%,#8c2a20 100%);
+  color:#fff5e8;border-color:#7a2019;text-shadow:0 -1px 0 rgba(0,0,0,.2);
+  box-shadow:0 1px 0 rgba(255,180,160,.4) inset,0 -2px 5px rgba(90,20,12,.4) inset,0 2px 5px rgba(80,60,30,.24);
+}
+.tb.primary:hover{filter:brightness(1.06);color:#fff5e8}
+
+/* ---------- 主布局 ----------
+   整页用纵向 flex：顶栏 60px 固定，中间 #app 自适应，
+   底部 #bottombar 高度由 --bottom-h 控制（拖拽分隔条写入）。
+   #app 内部横向分三列：图板区 | 竖分隔条 | 右侧面板。 */
+body{display:flex;flex-direction:column;overflow:hidden}
+header{flex:0 0 60px}
+#bottombar{flex:0 0 var(--bottom-h,52px);height:auto}
+#app{
+  flex:1 1 auto;min-height:0;
+  display:grid;
+  /* minmax(0,…) 给两列都留下限，宽窗口下 --side-w 被拖大也不会挤爆图板 */
+  grid-template-columns:minmax(0,1fr) 10px minmax(0,var(--side-w,316px));
+  grid-template-rows:minmax(0,1fr) auto;
+  gap:0;padding:12px 12px 0;
+}
+/* 可滚动区在桌面端「透明化」：子元素保持各自在 body / #app 里的原位，
+   只有手机窄屏才把它变成真正的滚动容器（见 @media max-width:620px）。 */
+#scrollzone{display:contents}
+#stage{
+  grid-column:1;grid-row:1;
+  position:relative;overflow:hidden;border-radius:var(--radius);
+  border:1px solid var(--line);
+  background:
+    radial-gradient(1000px 600px at 50% 8%, #fdfaf3 0%, rgba(253,250,243,0) 66%),
+    linear-gradient(180deg,#f4eee0 0%,#e6dcc6 100%);
+  box-shadow:0 2px 0 rgba(255,255,255,.8) inset,0 4px 16px rgba(80,60,30,.14);
+  display:flex;align-items:center;justify-content:center;
+  padding:14px;
+  min-width:0;min-height:0;
+}
+/* 平面图板：JS 按可用空间算好 #board-wrap 的像素尺寸，
+   底图填满它，格子和棋子再用百分比锚定 —— 保证 overlay 与底图严丝合缝。 */
+#board-wrap{
+  position:relative;line-height:0;
+  width:0;height:0;      /* 由 JS layoutBoard() 写入实际像素值 */
+}
+#board{
+  position:relative;z-index:1;
+  width:100%;height:100%;display:block;
+  border-radius:2px;user-select:none;-webkit-user-drag:none;
+}
+
+/* ---------- 中间地图（只换中心，外圈赛道卡保留原图） ----------
+   原图board_full.png 的中心地图区（实测 bounds，归一化）：
+     x 0.175 ~ 0.755   y 0.185 ~ 0.785   →  宽 0.580高 0.600
+   新图 board_new.jpg 是 4:3 全幅，用 object-fit:cover 居中裁切填满这块，
+   多余部分被切掉，地图本体完整可见。
+
+   区域以 CSS 变量给出，改边界只改这两个数。 */
+:root{
+  --map-x0:15.3%; --map-x1:84.7%;
+  --map-y0:18.8%;  --map-y1:81.3%;
+  /* 中心地图区用米黄底垫住，防止 cover 裁切后露白 */
+  --map-bed:#f4efe2;
+}
+#board-map{
+  position:absolute;z-index:2;
+  left:var(--map-x0);top:var(--map-y0);
+  width:calc(var(--map-x1) - var(--map-x0));
+  height:calc(var(--map-y1) - var(--map-y0));
+  /* fill 而非 cover：新图比例 1.48 与中心空洞 1.11 不同，
+     cover 会按宽铺满、上下留空，旧图中央的说明卡会从缝里露出来。
+     fill 拉伸填满整个空洞，横向压缩约 25%（地图是装饰，文字仍可读），
+     换来「旧内容一点不露」。 */
+  object-fit:fill;object-position:50% 50%;
+  display:block;border-radius:3px;
+  background:var(--map-bed);
+  box-shadow:0 0 0 1px rgba(120,95,55,.16),
+    0 2px 10px rgba(80,60,30,.14);
+  user-select:none;-webkit-user-drag:none;
+  pointer-events:none;         /* 不能挡住格子的点击 */
+}
+
+/* 中间下方：四部落横排 */
+#tribebar{
+  grid-column:1;grid-row:2;
+  margin-top:10px;
+  background:linear-gradient(180deg,var(--panel-hi),var(--paper-2));
+  border:1px solid var(--line);border-bottom:none;
+  border-radius:var(--radius) var(--radius) 0 0;
+  box-shadow:0 -1px 0 rgba(255,255,255,.9) inset,0 4px 14px rgba(80,60,30,.12);
+  padding:9px 11px 10px;
+}
+
+/* ---------- 可拖拽分隔条 ---------- */
+.splitter{
+  position:relative;background:transparent;
+  touch-action:none;   /* 让pointer 事件在触屏上也能拖 */
+}
+.splitter::after{
+  content:'';position:absolute;border-radius:2px;
+  background:var(--line);
+  transition:background .15s,box-shadow .15s;
+}
+/* 竖条：贴在 10px 的列里。width/min-width 显式给死，
+   防止任何子内容把这一列撑宽（那会把图板挤成一条缝）。 */
+.splitter-v{
+  grid-column:2;grid-row:1 / span 2;cursor:col-resize;
+  width:10px;min-width:10px;max-width:10px;justify-self:stretch;
+}
+.splitter-v::after{left:3px;right:3px;top:14px;bottom:14px}
+.splitter-v:hover::after,.splitter-v.drag::after{
+  background:var(--gold);box-shadow:0 0 6px rgba(184,137,46,.55);
+}
+/* 横条：#app 与 #bottombar 之间（flex 兄弟节点，不进 grid） */
+.splitter-h{
+  flex:0 0 10px;cursor:row-resize;align-self:stretch;
+}
+.splitter-h::after{top:4px;bottom:4px;left:16px;right:16px}
+.splitter-h:hover::after,.splitter-h.drag::after{
+  background:var(--gold);box-shadow:0 0 6px rgba(184,137,46,.55);
+}
+/* 拖拽时全局禁止选中，避免鼠标拖出一片蓝 */
+body.resizing{user-select:none;cursor:inherit !important}
+body.resizing iframe,body.resizing img{pointer-events:none}
+
+#sidepanel{
+  grid-column:3;grid-row:1 / span 2;
+  position:relative;border-radius:var(--radius);
+  background:linear-gradient(180deg,var(--panel-hi) 0%,var(--panel) 40%,var(--paper-2) 100%);
+  border:1px solid var(--line);
+  box-shadow:var(--lift);
+  display:flex;flex-direction:column;overflow:hidden;min-height:0;
+}
+#players{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+#sidepanel::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:linear-gradient(180deg,var(--cinnabar-lo),var(--cinnabar) 40%,var(--cinnabar-lo));
+  opacity:.55;z-index:2;
+}
+
+/* ---------- 3D 场景 HUD ---------- */
+.hud{position:absolute;left:16px;top:16px;z-index:5;max-width:268px;pointer-events:none}
+.hud-box{
+  background:rgba(255,253,247,.92);border-radius:var(--radius);
+  border:1px solid var(--line);padding:12px 14px;
+  box-shadow:0 2px 10px rgba(80,60,30,.14);backdrop-filter:blur(4px);
+}
+.hud-box h3{font-size:13.5px;margin-bottom:7px;color:var(--gold-lo);
+  font-family:"STKaiti","KaiTi","楷体",serif;letter-spacing:1.2px}
+.hud-box p{font-size:11.5px;line-height:1.7;color:var(--ink-2)}
+
+/* ---------- 图板右下角竖列：土地与作物 + 图例 ----------
+   「我的土地与作物」原来在底部横栏里，1 张土地卡就把整条栏撑满，
+   左边留下大片空白。现在把它搬到图例牌上方，用一个绝对定位的竖列
+   容器上下排列 —— 不占布局宽度，图板不会被挤窄。 */
+.legend-col{
+  position:absolute;left:10px;top:10px;z-index:5;
+  display:flex;flex-direction:column;align-items:stretch;gap:8px;
+  width:236px;                     /* 固定宽，不用百分比：
+                                       百分比会跟着 stage 宽度变，
+                                       而 stage 的宽度又由 layoutBoard 按这条列
+                                       的宽度来扣 —— 会互相牵着走形成抖动 */
+  max-height:calc(100% - 20px);
+  /* 竖列是绝对定位、不占布局的，加了手牌后内容在矮窗口（实测 1280×720）会装不下。
+     解决：让它自己纵向滚动。
+     pointer-events 可以放开 —— layoutBoard() 已经把图板整体右移让开了整列宽度
+     （实测竖列右边界 259 / 图板左边界 319，中间还空 60px），
+     所以竖列吃掉自己矩形内的点击不会挡住棋盘。滚动条隐藏，视觉保持干净。 */
+  overflow-y:auto;overflow-x:hidden;
+  pointer-events:auto;                /* 容器本身要能滚，子卡片照常接管 */
+  scrollbar-width:none;
+}
+.legend-col::-webkit-scrollbar{display:none}
+/* 宽屏：右侧竖列的让位由 layoutBoard 用 #board-wrap 的 margin-right 完成，
+   不用 stage 的 padding —— 扣掉 padding 后图板顶到可用宽边界，
+   宽度差恒为 0，会把「收窄竖列」的判断带进振荡。 */
+@media (min-width:1000px) and (max-width:1300px){
+  .legend-col{width:196px}
+}
+@media (min-width:1000px) and (max-width:1120px){
+  .legend-col{width:172px}
+}
+/* ---------- 图例上方的三类手牌入口 ---------- */
+#cardhub{
+  pointer-events:auto;
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;
+  background:rgba(255,253,247,.92);border:1px solid var(--line);
+  border-radius:var(--radius);padding:6px;
+  box-shadow:0 2px 10px rgba(80,60,30,.14);backdrop-filter:blur(4px);
+}
+.hub{
+  display:flex;flex-direction:column;align-items:center;gap:1px;
+  padding:5px 2px;border-radius:8px;cursor:pointer;
+  background:rgba(255,255,255,.6);border:1px solid transparent;
+  transition:.15s;font:inherit;color:var(--ink);
+}
+.hub:hover{background:#fff;border-color:var(--gold);transform:translateY(-1px);
+  box-shadow:0 3px 8px rgba(80,60,30,.16)}
+.hub:active{transform:translateY(0)}
+.hub-ico{font-size:14px;line-height:1.2}
+.hub-name{font-size:9.5px;color:var(--ink-2);letter-spacing:.2px;white-space:nowrap}
+.hub .pill{margin-top:1px}
+.hub.urgent{border-color:var(--azure);animation:hubPulse 1.6s ease-in-out infinite}
+@keyframes hubPulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(74,155,216,.5)}
+  50%{box-shadow:0 0 0 4px rgba(74,155,216,0)}
+}
+
+/* ---------- 手牌详情弹层里的卡片 ---------- */
+.hubgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:11px}
+.hubcard{
+  margin:0;border-radius:10px;overflow:hidden;
+  background:linear-gradient(180deg,#fffdf7,#f3ead6);
+  border:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 2px 6px rgba(80,60,30,.1);
+}
+.hubcard.good{border-color:#6ea757;box-shadow:0 0 0 1px rgba(110,167,87,.35),0 2px 6px rgba(80,60,30,.1)}
+.hubcard.bad{border-color:#c98b8b;box-shadow:0 0 0 1px rgba(201,139,139,.35),0 2px 6px rgba(80,60,30,.1)}
+.hubcard img{width:100%;display:block}
+.hubcard .wx-ico{
+  height:76px;display:grid;place-items:center;font-size:34px;
+  background:radial-gradient(circle at 50% 60%,rgba(255,255,255,.9),rgba(240,232,208,.4));
+}
+.hubcard figcaption{padding:7px 9px 9px;display:flex;flex-direction:column;gap:2px;text-align:center}
+.hubcard figcaption b{font-size:13px;font-family:STKaiti,KaiTi,楷体,serif;letter-spacing:.6px}
+.hubcard figcaption span{font-size:10.5px;color:var(--ink-3);line-height:1.5}
+.hubcard .hubnote{font-size:10px;opacity:.85}
+.hubcard .wx-val{font-size:12.5px;font-weight:700;color:var(--cinnabar-lo)}
+.hubcard figcaption .wikibtn--mini{align-self:center}
+#modal-body .hint{font-size:12.5px;line-height:1.8;color:var(--ink-2)}
+#modal-body .hint b{color:var(--ink)}
+#modal-body .hint .g{color:var(--cinnabar-lo)}
+
+/* ---------- 付费揭示高收益 ---------- */
+.revealbar{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:9px 12px;margin:4px 0 10px;border-radius:9px;
+  background:linear-gradient(180deg,#fdf6e6,#f6ecd4);
+  border:1px dashed var(--gold-lo);
+}
+.revealbar .rb-txt{flex:1 1 220px;font-size:12px;line-height:1.65;color:var(--ink-2)}
+.revealbar .tb{padding:6px 14px;font-size:12.5px}
+.revealbar .tb:disabled{opacity:.5;cursor:not-allowed}
+.revealtable{width:100%}
+.revealtable tr.row-good{background:#e9f7e9}
+.revealtable .ok{color:#3d7a30;font-size:11.5px}
+
+/* 改良卡：持有增益标记 */
+.hcard .imp-rate{
+  position:absolute;left:0;right:0;bottom:0;line-height:13px;text-align:center;
+  font-size:9.5px;font-weight:700;color:#fff;
+  background:linear-gradient(180deg,#5a8a3a,#3d6423);
+}
+.hcard.discardable:hover{box-shadow:0 3px 10px rgba(157,40,40,.3),0 0 0 1.5px rgba(157,40,40,.4)}
+.hcard.discardable::after{
+  content:'';position:absolute;inset:0;border-radius:6px;
+  background:rgba(157,40,40,.55);opacity:0;transition:.15s;pointer-events:none;
+}
+.hcard.discardable:hover::after{opacity:1}
+#handcount.on{background:rgba(90,138,58,.2);color:#3d6423;font-weight:700}
+
+#farmpanel{
+  pointer-events:auto;
+  background:rgba(255,253,247,.92);border:1px solid var(--line);
+  border-radius:var(--radius);padding:7px 9px 9px;
+  box-shadow:0 2px 10px rgba(80,60,30,.14);backdrop-filter:blur(4px);
+  display:flex;flex-direction:column;min-height:0;
+}
+#farmpanel h4{
+  font-size:11px;margin-bottom:5px;color:var(--gold-lo);letter-spacing:1.2px;
+  font-family:"STKaiti","KaiTi","楷体",serif;
+  display:flex;align-items:center;gap:6px;flex:0 0 auto;
+}
+#myfarms{
+  display:flex;flex-direction:column;gap:6px;
+  overflow-y:auto;overflow-x:hidden;
+  flex:0 1 auto;
+  /* min-height 必须给个保底：竖列是可滚容器（手牌搬进来后内容总高变大），
+     flex 压缩会优先把这一块压扁，不设下限就会在矮窗口里被压成 4px 的细条。
+     压到0 是最坏结果 —— 玩家会以为「我的土地」那块坏了。 */
+  min-height:34px;
+  /* 一张卡约 70~85px 高：留够 4 张（≈330px）再滚，
+     早先设 246px 只能装 2.5 张，第3 张被裁掉还冒出滚动条 */
+  max-height:min(56vh,368px);
+}
+#myfarms .hint{font-size:10.5px;line-height:1.6;padding:6px 2px}
+/* 竖排时土地卡压扁一点，避免面板过高 */
+.legend-col .farm{min-width:0}
+.legend-col .farm img{width:42px;height:33px}
+.legend-col .farm .fname{font-size:11.5px}
+.legend-col .fbtns{margin-top:4px}
+/* 面板窄，作物名+按钮容易把「种植」挤成竖排两字 —— 按钮不许换行 */
+.legend-col .mini{
+  white-space:nowrap;flex:0 0 auto;
+  padding:3px 8px;font-size:10.5px;line-height:1.5;
+}
+.legend-col .fcrop{font-size:9.5px;padding:1px 5px}
+/* 「适配：茶树、水稻、柑橘」在窄面板里换行会把卡片撑高一倍，压成单行省略 */
+.legend-col .fmeta{
+  font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+/* 竖列高度按内容（不要撑满 stage —— 撑满会把卡片裁掉并留一大片空白） */
+#farmpanel{flex:0 1 auto;max-height:none}
+.legend{flex:0 0 auto}
+
+/* 竖列（桌面/平板）里的土地卡：面板只有 236px（窄屏更窄），
+   而 #myfarms 上挂着 .hscroll，其 `.hscroll .farm{min-width:230px}` 会让卡片
+   比面板还宽 —— 右边被 overflow-x:hidden 裁掉一截，中间的图文被两侧的
+   图片/按钮挤成竖排（实测 .fmain 只剩 19px，一字一行）。
+   这里让卡片撑满面板宽、按钮整体换到第二行，图文都不再被截。
+   （只在 >620px 的竖列形态生效；≤620px 是「压在图板下缘的横滑条」，保持原样） */
+@media (min-width:621px){
+  #myfarms .farm{
+    display:flex;flex-wrap:wrap;width:100%;min-width:0;margin:0;
+    align-items:center;gap:8px;
+  }
+  #myfarms .farm img{width:42px;height:33px}
+  /* flex-basis 要用 0（不能用 auto）：basis:auto 时按内容的 max-content 算，
+     面板一窄它「放不下」就被挤到下一行，卡片高度 103 → 168 跳变、下半截被裁。
+     basis:0 让它安分待在第一行，宽度自适应（文字超了走 fmeta 的省略号）。 */
+  #myfarms .farm .fmain{flex:1 1 0;min-width:0}
+  #myfarms .farm .fbtns{
+    flex:0 0 100%;width:100%;flex-direction:row;flex-wrap:wrap;
+    gap:4px;margin-top:2px;align-items:center;
+  }
+  /* 「走到这块地上才能种植」提示与按钮同一行分摊宽度，不再把按钮挤到下一行 */
+  #myfarms .farm .farm-tip{flex:1 1 0;min-width:0}
+  #myfarms .farm .mini{flex:0 0 auto}
+}
+
+.legend{
+  flex:0 0 auto;
+  background:rgba(255,253,247,.90);border:1px solid var(--line);
+  border-radius:var(--radius);padding:8px 10px;
+  box-shadow:0 2px 10px rgba(80,60,30,.14);backdrop-filter:blur(4px);
+  pointer-events:none;
+  transition:opacity .2s;
+}
+.legend h4{font-size:11px;margin-bottom:5px;color:var(--gold-lo);
+  font-family:"STKaiti","KaiTi","楷体",serif;letter-spacing:1.2px}
+.legend-row{display:flex;align-items:center;gap:5px;font-size:10px;margin-bottom:2px;color:var(--ink-2);line-height:1.35}
+.legend-row .sw{width:11px;height:9px;border-radius:2px;border:1px solid rgba(0,0,0,.14);flex:0 0 auto}
+/* 右下角竖列变窄：纯用媒体查询控制，不要用JS 判断。
+   之前用 `availW - w < 阈值` 判断「图板快撑满了」→ 收窄竖列，
+   但availW 已经扣掉竖列宽度，图板只要顶到这条边界差值就是 0，
+   于是 272px ↔ 118px 来回振荡（面板宽度在两个值之间跳）。 */
+@media (min-width:1000px) and (max-width:1120px){
+  .legend-col{width:186px}
+  /* 原来这里把图例压到 110px 宽，四行部落名全部折成两行，图例高到 180px，
+     把「我的土地与作物」挤到只剩 139px（一张土地卡都装不下、总被切半截）。
+     放开宽度：图例每行一行放下，省下的高度正好还给土地卡。 */
+  #myfarms{max-height:min(46vh,236px)}
+  .legend-col .farm img{width:36px;height:28px}
+}
+
+/* ---------- 底部：窄屏入口栏 ----------
+   手牌搬去竖列之后，底栏在 PC 上其实空了（只剩 <1500px 才显示的新手教程/随农记两个按钮），
+   高度从 104px 砍到 52px。正因为内容极少，内边距必须收窄 + 用 border-box，
+   否则 padding(20px)+border(2px) 就把52px 里的 30px 吃光，内容装不下（实测
+   scrollHeight 81 > clientHeight 50，ui.test §12 会FAIL）。 */
+#bottombar{
+  display:flex;justify-content:center;align-items:center;gap:14px;
+  box-sizing:border-box;
+  padding:2px 14px;
+  background:linear-gradient(180deg,#f0e8d6 0%,#e5dbc4 100%);
+  border-top:2px solid var(--gold-lo);
+  box-shadow:0 -3px 12px rgba(80,60,30,.14) inset,0 -6px 18px rgba(80,60,30,.10);
+  min-height:0;
+  /* 底栏高度由 --bottom-h 固定，内容装不下时必须裁在栏内，
+     否则会溢出到视口外（1280×720 实测 scrollHeight 144 > clientHeight 102）。 */
+  overflow:hidden;
+}
+/* 只剩手牌一块：固定宽度靠右，不再横跨整屏留一大片空白 */
+#bottombar .bb-hand{width:296px;flex:0 0 296px}
+.bb-item{min-width:0;min-height:0;display:flex;flex-direction:column}
+.bb-item h4{
+  font-size:12px;color:#4a3f2c;margin-bottom:7px;letter-spacing:1.4px;flex:0 0 auto;
+  font-family:"STKaiti","KaiTi","楷体",serif;
+  display:flex;align-items:center;gap:7px;
+}
+.hscroll{flex:1;overflow-x:auto;overflow-y:hidden;padding-bottom:4px}
+.hscroll .farm{display:inline-flex;vertical-align:top;margin:0 8px 0 0;min-width:230px}
+.hscroll .hcard{margin-right:6px}
+
+/* 横向滚动里的土地卡改成竖向紧凑版 */
+.hscroll .farm img{width:52px;height:39px}
+.hscroll .fbtns{flex-direction:row}
+
+/* ---------- 玩家卡片：铜牌浮雕 ---------- */
+#players{padding:0}
+.pcard{
+  display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:10px;
+  border:1px solid transparent;position:relative;transition:.2s;
+  background:linear-gradient(180deg,#fdfaf3 0%,#f0e9d8 100%);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 1px 3px rgba(80,60,30,.09);
+}
+.pcard.active{
+  border-color:var(--gold);
+  background:linear-gradient(180deg,#fffaee 0%,#f6ecd6 100%);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.95) inset,
+    0 -1px 0 rgba(184,137,46,.28) inset,
+    0 2px 5px rgba(150,110,30,.20),
+    0 6px 16px rgba(184,137,46,.16);
+}
+.pcard.active::before{
+  content:'';position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:2px;
+  background:linear-gradient(180deg,var(--gold-hi),var(--gold),var(--gold-lo));
+}
+.pcard .pimg{
+  width:38px;height:38px;border-radius:8px;flex:0 0 auto;
+  background-size:86% 86%;background-position:center 44%;
+  background-repeat:no-repeat;
+  border:1px solid rgba(120,95,50,.4);
+  box-shadow:0 1px 0 rgba(255,255,255,.8) inset,0 2px 5px rgba(80,60,30,.22);
+}
+.pcard .pinfo{flex:1;min-width:0}
+.pcard .pname{
+  font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:5px;flex-wrap:wrap;
+  font-family:"STKaiti","KaiTi","楷体",serif;letter-spacing:.6px;
+}
+.pcard .ptag{
+  font-size:9.5px;padding:1.5px 6px;border-radius:5px;letter-spacing:.5px;
+  background:linear-gradient(180deg,#efe6d2,#e0d4b6);
+  border:1px solid var(--line);color:var(--ink-2);
+  box-shadow:0 1px 0 rgba(255,255,255,.8) inset;
+}
+.pcard .ptag.turn{
+  background:linear-gradient(180deg,var(--gold-hi),var(--gold));
+  color:#fff;border-color:var(--gold-lo);text-shadow:0 -1px 0 rgba(90,60,10,.3);
+}
+.pcard .ptag.jail{background:linear-gradient(180deg,#8e948c,#6b7268);color:#fff;border-color:#565c52}
+.pcard .ptag.dead{background:linear-gradient(180deg,#c98a7a,#a85f4c);color:#fff;border-color:#8a4a3a;text-shadow:0 -1px 0 rgba(80,30,20,.3)}
+/* 破产部落：整卡灰化、去饱和，视觉上退出牌桌 */
+.pcard.bankrupt{opacity:.5;filter:grayscale(.75)}
+.pcard.bankrupt .pbar i{background:linear-gradient(90deg,#b9b2a0,#8f887a)}
+.pcard .pmoney{font-size:11.5px;color:var(--ink-2);margin-top:2px;letter-spacing:.3px}
+.pcard .pmoney b{color:var(--cinnabar);font-size:14px;font-weight:700;text-shadow:0 1px 0 rgba(255,255,255,.7)}
+/* 欠款（负数）金额标红 */
+.pcard .pmoney.debt b{color:#8e2f1e}
+.pcard .pmotif{font-size:9.5px;color:var(--ink-3);margin-top:1px;letter-spacing:.4px}
+.pcard .ptrait{color:var(--gold-lo);font-weight:700;letter-spacing:.2px}
+.pcard .pbar{
+  height:5px;border-radius:3px;margin-top:5px;overflow:hidden;
+  background:linear-gradient(180deg,#ddd2b6,#eae1cb);
+  box-shadow:0 1px 2px rgba(120,100,60,.22) inset;
+}
+.pcard .pbar i{
+  display:block;height:100%;border-radius:3px;
+  background:linear-gradient(90deg,var(--bronze-hi),var(--bronze));
+  box-shadow:0 1px 0 rgba(255,255,255,.4) inset;
+  transition:width .35s;
+}
+.pcard .lands{
+  position:absolute;right:9px;top:8px;font-size:10px;color:var(--ink-3);
+  padding:1px 6px;border-radius:5px;background:rgba(255,255,255,.55);border:1px solid var(--line);
+}
+
+/* ---------- 侧栏区块 ---------- */
+.side-block{padding:12px;border-bottom:1px solid var(--line);min-height:0}
+.side-block.grow{flex:1;display:flex;flex-direction:column}
+.side-block h4{
+  font-size:12.5px;color:#4a3f2c;margin-bottom:9px;
+  display:flex;align-items:center;gap:7px;letter-spacing:1.4px;
+  font-family:"STKaiti","KaiTi","楷体",serif;
+}
+.pill{
+  background:linear-gradient(180deg,var(--bronze-hi),var(--bronze));
+  color:#fff;border-radius:9px;padding:1px 7px;font-size:10px;font-weight:700;
+  box-shadow:0 1px 0 rgba(255,255,255,.35) inset,0 1px 2px rgba(0,0,0,.16);
+}
+.hint{font-size:10.5px;color:var(--ink-3);line-height:1.6;margin-top:8px}
+
+.farm{
+  display:flex;align-items:center;gap:9px;padding:8px;margin-bottom:7px;border-radius:9px;
+  background:linear-gradient(180deg,#fdfaf3,#f2ecdd);
+  border:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 1px 3px rgba(80,60,30,.08);
+}
+.farm img{
+  width:56px;height:42px;object-fit:cover;border-radius:5px;flex:0 0 auto;
+  border:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(255,255,255,.7) inset,0 1px 3px rgba(80,60,30,.16);
+}
+.farm .fmain{flex:1;min-width:0}
+.farm .fname{font-size:11.5px;font-weight:600;letter-spacing:.3px}
+.farm .fname span{color:var(--ink-3);font-weight:400;font-size:10px}
+.farm .fmeta{font-size:10px;color:var(--ink-3);margin-top:2px}
+.farm .fcrops{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
+.farm .fcrop{
+  font-size:9.5px;border-radius:5px;padding:1px 5px;letter-spacing:.3px;
+  background:linear-gradient(180deg,#e8f2e0,#d8e8cc);color:#3d6b2c;border:1px solid #b8d4a6;
+  box-shadow:0 1px 0 rgba(255,255,255,.6) inset;
+}
+.farm .fcrop.bad{background:linear-gradient(180deg,#fbe8e6,#f0d4d0);color:#9a3028;border-color:#e0b4ae}
+.farm .fbtns{display:flex;flex-direction:column;gap:4px}
+.mini{
+  font-size:10px;padding:4px 8px;border-radius:6px;white-space:nowrap;
+  cursor:pointer;font-family:inherit;letter-spacing:.3px;
+  background:linear-gradient(180deg,#fffdf7,#ece2ca);color:var(--ink-2);
+  border:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(255,255,255,.85) inset,0 1px 2px rgba(80,60,30,.10);
+  transition:.15s;
+}
+.mini:hover{border-color:var(--gold);color:var(--gold-lo);transform:translateY(-1px)}
+.mini:active{transform:translateY(0);box-shadow:var(--press)}
+.mini:disabled{opacity:.4;cursor:not-allowed;transform:none}
+/* 非脚下地块的可见提示：按钮灰着时说明「走到这块地上才能种」 */
+#myfarms .farm-tip{
+  font-size:9.5px;line-height:1.25;color:#a07b2a;background:#fdf6e3;
+  border:1px dashed #e4cf95;border-radius:6px;padding:3px 5px;text-align:center;
+}
+.mini.harvest{
+  background:linear-gradient(180deg,#e8c46a,#c99b2e);color:#4a3408;
+  border-color:var(--gold-lo);text-shadow:0 1px 0 rgba(255,240,200,.4);
+}
+
+.hand{display:flex;flex-wrap:wrap;gap:7px;max-height:118px;overflow-y:auto}
+.hcard{
+  position:relative;width:58px;height:81px;border-radius:6px;overflow:hidden;cursor:pointer;
+  background:#fff;border:1px solid var(--line);flex:0 0 auto;
+  box-shadow:0 1px 0 rgba(255,255,255,.8) inset,0 2px 5px rgba(80,60,30,.16);
+  transition:.18s;
+}
+.hcard:hover{
+  transform:translateY(-3px) scale(1.06);border-color:var(--gold);z-index:3;
+  box-shadow:0 3px 8px rgba(80,60,30,.22),0 8px 18px rgba(184,137,46,.20);
+}
+.hcard img{width:100%;height:100%;display:block}
+/* 不是自己回合时，手牌压暗、鼠标变成禁止 */
+.hcard.locked{opacity:.55;cursor:not-allowed;filter:grayscale(.35)}
+.hcard.locked:hover{transform:none;border-color:var(--line);box-shadow:0 1px 0 rgba(255,255,255,.8) inset,0 2px 5px rgba(80,60,30,.16)}
+.hcard.empty{
+  display:grid;place-items:center;color:var(--ink-3);font-size:10px;
+  /* 空占位只是提示，不需要跟真卡一样高（否则撑爆底栏） */
+  width:58px;height:40px;
+  background:repeating-linear-gradient(45deg,#f2ecdd 0 6px,#ece5d3 6px 12px);
+  cursor:default;border-style:dashed;box-shadow:none;
+}
+/* 头像上加一枚「电脑」标记 */
+.pcard.ai .pimg::after{
+  content:'AI';position:absolute;right:-3px;bottom:-3px;
+  font-size:8px;font-weight:700;letter-spacing:.3px;
+  background:linear-gradient(180deg,#5f6b7a,#3f4956);color:#eef3f8;
+  border:1px solid #2f3841;border-radius:4px;padding:0 3px;line-height:11px;
+}
+.pcard .pimg{position:relative}
+.pcard.ai{border-color:#c3cdd8}
+.pcard.ai.active{
+  border-color:var(--gold);
+  background:linear-gradient(180deg,#fffaee 0%,#f6ecd6 100%);
+}
+.ptag.bot{
+  background:linear-gradient(180deg,#5f6b7a,#3f4956);color:#eef3f8;
+  border-color:#2f3841;text-shadow:0 -1px 0 rgba(0,0,0,.25);
+}
+
+/* ---------- 图板：装裱 ---------- */
+#board-wrap::before{
+  content:'';position:absolute;inset:-11px -9px;z-index:0;
+  background:linear-gradient(160deg,#d9c9a3,#c2ab7d 40%,#b39a6a);
+  border-radius:5px;
+  box-shadow:0 1px 0 rgba(255,245,220,.6) inset,0 -2px 6px rgba(90,70,30,.24) inset,0 8px 24px rgba(80,60,30,.20);
+}
+#board-wrap::after{
+  content:'';position:absolute;inset:-6px;z-index:1;pointer-events:none;
+  border:1px solid rgba(120,95,45,.42);border-radius:3px;
+  box-shadow:0 0 0 3px rgba(240,228,200,.5);
+}
+#board{
+  position:relative;z-index:1;
+  width:100%;height:100%;display:block;
+  border-radius:2px;user-select:none;-webkit-user-drag:none;
+  box-shadow:0 0 22px rgba(90,70,40,.14) inset;
+}
+/* ⚠ 这里的分号不能少：#cells 与 #pawns 都铺满整个图板，靠 pointer-events:none
+   让点击穿到下层。少了分号 → 整条声明被 CSS 丢弃 → #pawns(z4) 盖住 #cells(z3)，
+   真实鼠标点格子全被棋子层吃掉（弹层打不开）。.cell / .pawn 各自再单独设定。 */
+#cells,#pawns,#slots{position:absolute;inset:0;pointer-events:none;
+  z-index:3;}
+/* 卡位牌在最下（纯装饰），格子中，棋子最上 */
+#slots{z-index:2}
+#cells{z-index:3}
+#pawns{z-index:4}
+
+/* ---------- 图板卡位牌 ----------
+   盖住底图中央的手绘说明卡，铺国风牌位 SVG。 */
+.slot{
+  position:absolute;border-radius:7px;
+  background-repeat:no-repeat;background-position:center;background-size:100% 100%;
+  filter:drop-shadow(0 2px 5px rgba(80,60,30,.22));
+}
+
+/* ---------- 赛道格 ----------
+   每格铺一张国风 SVG 贴片（盖住底图上原来的卡通插画），
+   定位用实测矩形（left/top/width/height 百分比）。
+   归属染色与高亮走叠加层，不再直接用 background，免得盖住贴片。 */
+.cell{
+  position:absolute;border-radius:6px;
+  pointer-events:auto;cursor:pointer;
+  background-repeat:no-repeat;background-position:center;background-size:100% 100%;
+  transition:transform .16s,filter .16s;
+  overflow:visible;
+}
+.cell:hover{transform:scale(1.045);z-index:9;
+  filter:brightness(1.04) drop-shadow(0 4px 10px rgba(80,60,30,.34))}
+/* 归属染色：半透明色罩 + 描边（用 ::before，避免遮住贴片细节） */
+.cell::before{
+  content:'';position:absolute;inset:0;border-radius:6px;pointer-events:none;
+  border:2px solid transparent;transition:background .16s,border-color .16s,box-shadow .16s;
+}
+.cell.owned-A::before{background:rgba(79,158,214,.30);border-color:rgba(47,110,160,.6)}
+.cell.owned-B::before{background:rgba(78,115,80,.28);border-color:#33513a}
+.cell.owned-C::before{background:rgba(184,132,63,.30);border-color:var(--gold-lo)}
+.cell.owned-D::before{background:rgba(200,95,46,.28);border-color:#8a3a18}
+.cell.cur::before{box-shadow:0 0 0 3px var(--gold-hi),0 0 16px rgba(229,196,121,.85)}
+/* 悬停提示卡 */
+.cell .tip{
+  position:absolute;left:50%;bottom:calc(100% + 6px);
+  transform:translateX(-50%) scale(.9);transform-origin:bottom center;
+  opacity:0;pointer-events:none;transition:opacity .16s,transform .16s;
+  background:linear-gradient(180deg,var(--panel-hi),var(--paper-2));
+  border:1px solid var(--gold);border-radius:8px;
+  padding:6px 10px;white-space:nowrap;z-index:20;
+  box-shadow:0 3px 10px rgba(80,60,30,.28),0 0 0 2px rgba(255,253,247,.8) inset;
+  font-size:11.5px;color:var(--ink);line-height:1.5;text-align:center;
+}
+.cell .tip b{font-size:12.5px;letter-spacing:.5px}
+.cell .tip .tp{color:var(--cinnabar-lo);font-weight:700}
+.cell:hover .tip{opacity:1;transform:translateX(-50%) scale(1)}
+/* 底边格子的提示朝上会被图板下沿裁掉，翻到下侧 */
+.cell.tip-down .tip{bottom:auto;top:calc(100% + 6px);transform-origin:top center}
+.cell.tip-down:hover .tip{transform:translateX(-50%) scale(1)}
+/* 归属角标 */
+.cell .mark{
+  position:absolute;right:-5px;top:-5px;z-index:2;pointer-events:none;
+  width:13px;height:13px;border-radius:50%;
+  border:1.5px solid #fffdf7;box-shadow:0 1px 3px rgba(0,0,0,.3);
+}
+.cell .mark.A{background:linear-gradient(180deg,#6fb4e4,#3a7fb0)}
+.cell .mark.B{background:linear-gradient(180deg,#5f8a62,#3f6244)}
+.cell .mark.C{background:linear-gradient(180deg,#cf9b40,#a5761f)}
+.cell .mark.D{background:linear-gradient(180deg,#d9773f,#a8451f)}
+
+/* 部落棋子：国风立体标识 */
+.pawn{
+  position:absolute;transform:translate(-50%,-58%);
+  /* SVG 有内在宽高比，给固定宽度后用 aspect-ratio 自动定高，
+     否则只有 min-width 会导致高度为 0（图标不可见） */
+  width:36px;height:44px;   /* JS 会按 SVG 比例覆盖 */
+  background-repeat:no-repeat;background-position:center bottom;background-size:contain;
+  pointer-events:none;z-index:8;
+  transition:left .5s cubic-bezier(.34,1.42,.5,1),top .5s cubic-bezier(.34,1.42,.5,1);
+  filter:drop-shadow(0 2px 3px rgba(70,50,20,.38));
+}
+.pawn.A{z-index:8}
+.pawn.B{z-index:9}
+.pawn.C{z-index:10}
+.pawn.D{z-index:11}
+/* 逐格行走：过渡时长要略小于每格推进间隔（250ms），
+   形成「走一格 → 停一下 → 再走一格」的节奏，而不是瞬移。 */
+.pawn.walking{
+  transition:left .22s cubic-bezier(.45,.05,.55,.95),top .22s cubic-bezier(.45,.05,.55,.95);
+  z-index:12;
+}
+/* 棋子刚落到的格子闪一下，方便数清走了几格 */
+.cell.step-on{
+  box-shadow:0 0 0 2.5px var(--gold-hi),0 0 14px rgba(229,196,121,.85);
+  z-index:11;
+}
+.pawn.cur-pawn{animation:pawnGlow 1.7s ease-in-out infinite}
+/* 破产出局：棋子灰化淡出，一眼看出它已不在场上（与面板 .pcard.bankrupt 呼应） */
+.pawn.out{opacity:.22;filter:grayscale(1);animation:none;z-index:6}
+@keyframes pawnGlow{
+  0%,100%{filter:drop-shadow(0 2px 3px rgba(70,50,20,.34)) drop-shadow(0 0 0 rgba(229,196,121,0))}
+  50%{filter:drop-shadow(0 2px 3px rgba(70,50,20,.34)) drop-shadow(0 0 8px rgba(245,214,140,.95))}
+}
+
+/* ---------- 右侧面板 ---------- */
+.panel-block{padding:12px;border-bottom:1px solid var(--line)}
+.panel-block.grow{flex:1;display:flex;flex-direction:column;min-height:0;border-bottom:1px solid var(--line)}
+.panel-block--foot{border-bottom:none;background:linear-gradient(180deg,rgba(255,253,247,0) 0%,rgba(229,240,225,.5) 100%)}
+.panel-block--foot .dice-box{margin:0 0 10px}
+.panel-block h4{
+  font-size:12.5px;color:#4a3f2c;margin-bottom:9px;letter-spacing:1.4px;
+  font-family:"STKaiti","KaiTi","楷体",serif;
+}
+.roll{
+  width:100%;padding:13px;border-radius:10px;color:#fff5e8;
+  font-size:14.5px;font-weight:700;letter-spacing:3px;cursor:pointer;font-family:inherit;
+  border:1px solid var(--gold-lo);
+  background:linear-gradient(180deg,#5f8a62 0%,#4e7350 45%,#3a5a3c 100%);
+  box-shadow:0 1px 0 rgba(200,230,200,.4) inset,0 -3px 6px rgba(20,40,22,.4) inset,0 3px 7px rgba(80,60,30,.24);
+  text-shadow:0 -1px 0 rgba(0,0,0,.24);
+  transition:.16s;
+}
+.roll:hover:not(:disabled){
+  background:linear-gradient(180deg,#6d9b70,#5a8260 45%,#446645 100%);
+  transform:translateY(-1px);
+  box-shadow:0 1px 0 rgba(200,230,200,.45) inset,0 -3px 6px rgba(20,40,22,.4) inset,0 6px 14px rgba(80,60,30,.26);
+}
+.roll:active:not(:disabled){transform:translateY(0);box-shadow:var(--press)}
+.roll:disabled{
+  background:linear-gradient(180deg,#cfc6b0,#b4aa92);color:#8a8070;
+  border-color:#a89e88;cursor:not-allowed;
+  box-shadow:0 1px 2px rgba(80,60,30,.14) inset;text-shadow:none;
+}
+.dice-box{display:flex;gap:9px;justify-content:center;margin-top:11px;min-height:46px;align-items:center;flex-wrap:wrap}
+.die{
+  width:40px;height:40px;border-radius:9px;
+  display:grid;place-items:center;font-size:21px;
+  background:linear-gradient(180deg,#fffdf7 0%,#e8ddc4 100%);
+  border:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(255,255,255,.95) inset,0 -2px 4px rgba(120,100,60,.2) inset,0 3px 6px rgba(80,60,30,.18);
+}
+.die.roll-anim{animation:dieRoll .55s cubic-bezier(.3,.9,.4,1)}
+@keyframes dieRoll{
+  0%{transform:rotate(0) scale(1)}
+  50%{transform:rotate(200deg) scale(1.2)}
+  100%{transform:rotate(360deg) scale(1)}
+}
+.die-sum{font-size:12px;color:var(--ink-2);text-align:center;width:100%;letter-spacing:1px}
+.die-sum b{color:var(--cinnabar);font-size:16px;font-weight:700}
+
+.actions{display:flex;flex-direction:column;gap:7px}
+.act{
+  padding:10px 12px;border-radius:9px;text-align:left;font-size:12px;
+  cursor:pointer;font-family:inherit;color:var(--ink);line-height:1.4;
+  background:linear-gradient(180deg,#fffdf7 0%,#eee6d2 100%);
+  border:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 2px 5px rgba(80,60,30,.11);
+  transition:.16s;
+}
+.act:hover:not(:disabled){
+  border-color:var(--gold);background:linear-gradient(180deg,#fffaee,#f4e9d2);
+  transform:translateY(-1px);
+  box-shadow:0 2px 6px rgba(80,60,30,.14),0 7px 16px rgba(184,137,46,.18);
+}
+.act:active:not(:disabled){transform:translateY(0);box-shadow:var(--press)}
+.act:disabled{opacity:.45;cursor:not-allowed;border-style:dashed}
+.act .at{display:flex;justify-content:space-between;align-items:center;gap:9px;font-weight:600}
+.act .ad{font-size:10.5px;color:var(--ink-3);margin-top:3px;line-height:1.5}
+.act .ac{font-weight:700;color:var(--cinnabar);white-space:nowrap}
+.act .ac.g{color:var(--bronze)}
+.act .ac.n{color:var(--ink-2)}
+.act.primary{
+  border-color:var(--gold);background:linear-gradient(180deg,#fffaec 0%,#f4e6c8 100%);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 -1px 0 rgba(184,137,46,.3) inset,0 2px 6px rgba(150,110,30,.18);
+}
+
+.log{flex:1;overflow-y:auto;font-size:11.5px;line-height:1.7;padding-right:4px}
+/* ---------- 游戏日志：按类型着色 + 图标 ----------
+   每类消息只改一个 --c 变量（文字色），图标底色与分隔线都由它派生，
+   所以新增类型只要加一行，不必重写整段。 */
+.log .li{
+  --c:#5f5648;
+  padding:3px 0;border-bottom:1px dashed var(--line);
+  color:var(--c);letter-spacing:.2px;
+}
+.log .li:last-child{border-bottom:none}
+.log .li .rt{
+  color:var(--ink-3);font-size:9.5px;margin-right:6px;
+  padding:0 4px;border-radius:4px;background:rgba(160,140,100,.10);
+  vertical-align:1px;
+}
+/* 图标：16px 圆角小方块，用当前色的淡底衬出 */
+.log .li .ico{
+  display:inline-block;width:17px;height:17px;line-height:17px;
+  margin-right:5px;border-radius:5px;text-align:center;
+  font-size:10.5px;vertical-align:-3px;
+  background:rgba(0,0,0,.05);
+}
+.log .k-turn{--c:#8a8070}
+.log .k-dice{--c:#3f6ea8}
+.log .k-move{--c:#7a6a4a}
+.log .k-start{--c:#a8781e}
+.log .k-land{--c:#7a5a2e}
+.log .k-station{--c:#4a6fa5}
+.log .k-market{--c:#9a6412}
+.log .k-buy{--c:#2f6b8a}
+.log .k-plant{--c:#3f7a2e}
+.log .k-harvest{--c:#8a6416}
+.log .k-harvest-bad{--c:#9a3028}
+.log .k-seed{--c:#4a7a3a}
+.log .k-use{--c:#3d6b2c}
+.log .k-improve{--c:#5a4a7a}
+.log .k-weather{--c:#2f7a8a}
+.log .k-weather-bad{--c:#9a4a1e}
+.log .k-pass{--c:#a03028}
+.log .k-prison{--c:#5a5a62}
+.log .k-skip{--c:#8a8070}
+.log .k-win{--c:var(--cinnabar);font-weight:700}
+.log .k-good{--c:#3d6b2c}
+.log .k-bad{--c:#9a3028}
+.log .k-warn{--c:#8a6416}
+/* 换手与系统消息给一条浅底，把「回合边界」和「正文」区分开 */
+.log .k-turn{
+  margin-top:5px;padding:5px 8px;border-radius:7px;
+  background:rgba(160,140,100,.10);border-bottom:none;
+  font-weight:600;letter-spacing:.6px;
+}
+.log .k-sys{--c:#7a7166}
+
+/* ---------- 查阅科普 ----------
+   跳百度百科看现实概念。btn 用在弹层里的整行入口，
+   badge 用在可点击的手牌上（不能抢走卡片的点击）。 */
+.wikibar{margin:-4px 0 10px}
+.wikibtn{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:6px 14px;border-radius:20px;
+  font-size:12.5px;font-weight:600;text-decoration:none;letter-spacing:.4px;
+  color:#1f5b7a;background:linear-gradient(180deg,#eef6fb,#dceaf5);
+  border:1px solid rgba(31,91,122,.34);
+  box-shadow:0 1px 0 rgba(255,255,255,.8) inset,0 2px 5px rgba(31,91,122,.14);
+  transition:.16s;
+}
+.wikibtn:hover{
+  color:#fff;background:linear-gradient(180deg,#3c85ad,#1f5b7a);
+  border-color:#17475f;transform:translateY(-1px);
+  box-shadow:0 4px 10px rgba(31,91,122,.28);
+}
+/* 卡面下方的小按钮 */
+.wikibtn--mini{
+  display:flex;margin:5px auto 0;padding:3px 10px;
+  font-size:10.5px;font-weight:500;letter-spacing:.2px;border-radius:14px;
+}
+.wikibtn--mini:hover{transform:none}
+/* 手牌右上角角标 */
+.wikibadge{
+  position:absolute;right:2px;top:2px;z-index:3;
+  width:17px;height:17px;line-height:17px;border-radius:50%;
+  text-align:center;font-size:9.5px;text-decoration:none;
+  color:#1f5b7a;background:rgba(255,255,255,.92);
+  border:1px solid rgba(31,91,122,.4);
+  box-shadow:0 1px 3px rgba(0,0,0,.22);
+  opacity:.72;transition:.14s;
+}
+.wikibadge:hover{opacity:1;background:#1f5b7a;color:#fff;transform:scale(1.14)}
+
+/* ---------- 单机模式：选择部落 ---------- */
+.pickgrid{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;
+}
+.pickcard{
+  margin:0;cursor:pointer;border-radius:12px;overflow:hidden;
+  background:linear-gradient(180deg,#fffdf7,#f2ead8);
+  border:2px solid var(--line);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 2px 7px rgba(80,60,30,.12);
+  transition:transform .16s,border-color .16s,box-shadow .16s;
+  display:flex;flex-direction:column;
+}
+.pickcard:hover{transform:translateY(-3px);border-color:var(--tc)}
+.pickcard.on{
+  border-color:var(--tc);
+  box-shadow:0 0 0 2.5px var(--gold-hi),0 8px 20px rgba(80,60,30,.22);
+}
+.pickpic{
+  height:96px;background-repeat:no-repeat;background-position:center;
+  background-size:contain;padding:8px 8px 4px;
+  filter:drop-shadow(0 3px 4px rgba(70,50,20,.28));
+}
+.pickcard figcaption{
+  padding:9px 10px 11px;display:flex;flex-direction:column;gap:3px;
+  text-align:center;flex:1 1 auto;
+}
+.pickcard figcaption b{font-size:14.5px;font-family:"STKaiti","KaiTi","楷体",serif;letter-spacing:1px}
+.picktrait{
+  font-size:11px;color:var(--cinnabar-lo);font-weight:700;line-height:1.5;
+}
+.pickdesc{font-size:10.5px;color:var(--ink-3);line-height:1.6;flex:1 1 auto}
+.pickslot{
+  margin-top:6px;font-size:11px;font-weight:700;padding:3px 0;border-radius:6px;
+  color:var(--ink-3);background:rgba(160,140,100,.12);
+}
+.pickcard.on .pickslot{color:#fff;background:var(--tc)}
+
+/* ---------- 弹层：卷轴 ----------
+   滚动放在内层 #modal-body，外层 .modal-box 只负责卷轴外观。
+   若把 overflow-y:auto 留在 .modal-box 上，两根装饰木条（::before/::after，
+   左右各外扩 6px）会被算进 scrollWidth，弹层底部就会多出一条横向滚动条。 */
+.modal{position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:26px;overflow-y:auto;
+  background:rgba(45,35,20,.52);backdrop-filter:blur(3px)}
+.modal-box{
+  position:relative;max-width:900px;width:100%;max-height:88vh;
+  display:flex;flex-direction:column;overflow:visible;
+  padding:0;border-radius:14px;
+  background:linear-gradient(180deg,#fffdf7 0%,#f6f0e0 100%);
+  border:1px solid var(--line);
+  box-shadow:0 2px 0 rgba(255,255,255,.9) inset,0 -3px 10px rgba(120,100,60,.14) inset,0 18px 50px rgba(50,35,15,.36);
+}
+#modal-body{
+  flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;
+  padding:26px 28px;border-radius:14px;
+}
+.modal-box::before,.modal-box::after{
+  content:'';position:absolute;left:-6px;right:-6px;height:11px;border-radius:6px;
+  background:linear-gradient(180deg,#d9c9a3,#b39a6a 55%,#8a7448);
+  box-shadow:0 1px 0 rgba(255,245,220,.5) inset,0 2px 5px rgba(0,0,0,.18);
+}
+.modal-box::before{top:-8px}
+.modal-box::after{bottom:-8px}
+.modal-close{
+  position:absolute;right:14px;top:14px;width:30px;height:30px;border-radius:50%;
+  cursor:pointer;font-size:15px;color:var(--ink-2);
+  background:linear-gradient(180deg,#fffdf7,#ece2ca);border:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 2px 4px rgba(80,60,30,.14);
+}
+.modal-close:hover{background:linear-gradient(180deg,#d4574a,#a33a2c);color:#fff;border-color:#7a2019}
+.modal-box h3{
+  font-size:18px;margin-bottom:15px;color:#3a2f1e;letter-spacing:2px;
+  font-family:"STKaiti","KaiTi","楷体",serif;
+}
+.modal-box h4{
+  font-size:14px;margin:18px 0 9px;color:var(--gold-lo);letter-spacing:1.2px;
+  font-family:"STKaiti","KaiTi","楷体",serif;
+}
+.modal-box p{font-size:12.5px;line-height:1.85;color:var(--ink-2);margin-bottom:9px}
+.modal-box table{width:100%;border-collapse:collapse;font-size:12px;margin:9px 0}
+.modal-box th,.modal-box td{padding:7px 9px;border:1px solid var(--line);text-align:left}
+.modal-box th{
+  background:linear-gradient(180deg,#f0e8d4,#e4dabc);color:#4a3f2c;font-weight:600;
+  box-shadow:0 1px 0 rgba(255,255,255,.8) inset;
+}
+.cardgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(152px,1fr));gap:13px;margin-top:9px}
+.cardgrid figure{transition:transform .15s}
+.cardgrid figure:hover{transform:translateY(-3px)}
+.cardgrid img{
+  width:100%;border-radius:6px;display:block;
+  box-shadow:0 2px 6px rgba(80,60,30,.16);
+  transition:box-shadow .16s,outline-color .16s;
+  outline:2.5px solid transparent;outline-offset:2px;
+}
+/* 该作物的高收益土壤正好是这块地 -> 绿描边 */
+.cardgrid figure.good img{outline-color:#6ea757;
+  box-shadow:0 2px 8px rgba(90,140,60,.28)}
+.cardgrid figure.good:hover img{outline-color:#4f8f38}
+.cardgrid figcaption{font-size:11px;color:var(--ink-2);text-align:center;margin-top:6px;line-height:1.5}
+.cardgrid .cc-cost{font-size:10.5px;color:var(--ink-3)}
+.cardgrid .cc-cost s{color:#b0a68f}
+.cardgrid .cc-cost b{color:var(--ink-2)}
+/* 部落特长加成标签 */
+/* 这两个标签必须独占一行：用inline-block 时它会跟前面的「净+95」
+   挤在同一行，窄屏下还会把整行撑得超宽（手机 2 列时尤其明显）。 */
+.cc-bonus{
+  display:block;width:max-content;max-width:100%;margin:3px auto 0;
+  padding:1px 6px;border-radius:6px;
+  font-size:9.5px;line-height:1.5;letter-spacing:.2px;
+  color:var(--cinnabar-lo);background:rgba(178,58,46,.10);
+  border:1px solid rgba(178,58,46,.28);font-weight:700;
+}
+/* 用手牌作物卡的提示 */
+.cc-stock{
+  display:block;width:max-content;max-width:100%;margin:3px auto 0;
+  padding:1px 6px;border-radius:6px;
+  font-size:9.5px;line-height:1.5;font-weight:700;
+  color:#3d6b2c;background:rgba(109,143,74,.14);border:1px solid rgba(78,115,80,.32);
+}
+.cc-full{font-size:9.5px;color:var(--ink-3);margin-top:2px}
+
+/* ---------- 作物卡手牌（种子集市买的） ---------- */
+.seedrow{
+  display:flex;flex-wrap:wrap;gap:5px;align-items:center;
+  min-height:22px;margin-bottom:5px;
+}
+.seedempty{font-size:10.5px;color:var(--ink-3);opacity:.75}
+.seedchip{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:2px 7px;border-radius:8px;cursor:default;
+  background:linear-gradient(180deg,#f6fbf1,#e8f0e0);
+  border:1px solid rgba(78,115,80,.38);
+  box-shadow:0 1px 0 rgba(255,255,255,.7) inset,0 1px 2px rgba(80,60,30,.08);
+  font-size:11px;color:var(--ink);white-space:nowrap;
+}
+.seedchip b{font-weight:700}
+.seedchip i{font-style:normal;font-weight:700;color:#3d6b2c;font-size:11.5px}
+.rulelist{margin-left:20px;font-size:12.5px;line-height:1.95;color:var(--ink-2)}
+.rulelist li{margin-bottom:5px}
+.traitlist li{margin-bottom:9px}
+
+/* ---------- 对局设置弹层 ---------- */
+#setlist{display:flex;flex-direction:column;gap:9px;margin:4px 0 14px}
+.setrow{
+  padding:10px 12px;border-radius:10px;
+  background:linear-gradient(180deg,#fffdf7,#f4ecdb);
+  border:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 1px 4px rgba(80,60,30,.08);
+}
+.sethead{display:flex;align-items:center;gap:8px;font-size:13px}
+.sethead .sw{width:14px;height:14px;border-radius:4px;flex:0 0 auto;
+  box-shadow:0 0 0 1.5px rgba(255,253,247,.9) inset,0 1px 2px rgba(0,0,0,.2)}
+.setmotif{color:var(--ink-3);font-size:11.5px}
+.setmoney{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-2)}
+.setmoney input{
+  width:76px;padding:4px 7px;border-radius:7px;font:700 14px var(--font-num,inherit);
+  border:1px solid var(--gold-lo);background:#fffdf7;color:var(--ink);
+  text-align:right;box-shadow:0 1px 2px rgba(80,60,30,.10) inset;
+}
+.setmoney input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 2px rgba(184,137,46,.22)}
+.settrait{margin-top:6px;font-size:11.5px;line-height:1.65;color:var(--ink-2)}
+.settrait b{color:var(--cinnabar-lo)}
+.setactions{display:flex;justify-content:flex-end;gap:9px;margin-top:4px}
+
+/* 设置里的背景音乐滑块：盖掉 .setmoney input 的输入框外观，回到原生 range */
+#setbgm{margin-bottom:14px}
+#setbgm .setmoney input[type=range]{
+  width:130px;height:20px;padding:0;border:none;background:none;
+  accent-color:var(--gold);cursor:pointer;box-shadow:none;
+}
+#setbgm .setmoney input[type=range]:focus{outline:none;box-shadow:none}
+#setbgm #bgm-vol-txt{
+  width:40px;text-align:right;color:var(--ink-2);
+  font:700 12.5px var(--font-num,inherit);font-variant-numeric:tabular-nums;
+}
+
+.motif-legend{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:10px 0 4px}
+.motif-box{
+  display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border-radius:10px;
+  background:linear-gradient(180deg,#fffdf7,#f0e9d8);border:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 2px 5px rgba(80,60,30,.10);
+}
+.motif-box .mi{
+  width:46px;height:52px;background-repeat:no-repeat;background-position:center;background-size:contain;
+  filter:drop-shadow(0 2px 3px rgba(70,50,20,.28));
+}
+.motif-box b{font-size:12.5px;font-family:"STKaiti","KaiTi","楷体",serif;letter-spacing:1px}
+.motif-box span{font-size:10px;color:var(--ink-3);text-align:center;line-height:1.4}
+
+/* ---------- 胜负横幅 ---------- */
+.banner{position:fixed;inset:0;z-index:70;display:grid;place-items:center;
+  background:rgba(45,35,20,.6);backdrop-filter:blur(3px)}
+.banner-box{
+  padding:38px 52px;text-align:center;border-radius:16px;
+  background:linear-gradient(180deg,#fffdf7 0%,#f4ecd8 100%);
+  border:2px solid var(--gold);
+  box-shadow:0 2px 0 rgba(255,255,255,.9) inset,0 18px 50px rgba(50,35,15,.4);
+  animation:pop .42s cubic-bezier(.2,1.5,.4,1);
+}
+@keyframes pop{from{transform:scale(.72);opacity:0}to{transform:scale(1);opacity:1}}
+.banner-box #banner-icon{font-size:54px}
+.banner-box h2{
+  font-size:24px;margin:11px 0 7px;color:#3a2f1e;letter-spacing:3px;
+  font-family:"STKaiti","KaiTi","楷体",serif;
+}
+.banner-box p{font-size:13px;color:var(--ink-2);margin-bottom:22px}
+.banner-box .roll{width:auto;padding:12px 34px}
+
+/* ---------- 载入 ---------- */
+#loading{position:fixed;inset:0;z-index:90;display:grid;place-items:center;transition:opacity .35s;background:var(--paper)}
+#loading.hide{opacity:0;pointer-events:none}
+.loader{
+  width:42px;height:42px;margin:0 auto 14px;border-radius:50%;
+  border:4px solid var(--paper-3);border-top-color:var(--gold);
+  animation:spin .85s linear infinite;
+  box-shadow:0 2px 6px rgba(80,60,30,.14);
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:rgba(160,140,100,.07);border-radius:5px}
+::-webkit-scrollbar-thumb{
+  background:linear-gradient(180deg,#d4c8ae,#bcae90);border-radius:5px;border:2px solid var(--panel);
+}
+::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#c0b294,#a89a78)}
+
+/* 断点只缩放、不改结构：始终保持「图板 | 竖条 | 面板」三列，
+   用 calc 乘系数缩小面板，避免覆盖用户拖出来的 --side-w。 */
+@media (max-width:1400px){
+  #app{grid-template-columns:minmax(0,1fr) 10px minmax(0,calc(var(--side-w,316px) * .84))}
+}
+@media (max-width:1200px){
+  #app{grid-template-columns:minmax(0,1fr) 10px minmax(0,calc(var(--side-w,316px) * .74));padding:10px 10px 0}
+  #tribebar{margin-top:8px}
+}
+/* 再窄就收掉竖条，面板并到图板右侧（仍两列，但不再有可拖的缝） */
+@media (max-width:1000px){
+  .splitter-v{display:none}
+  #app{grid-template-columns:minmax(0,1fr) minmax(0,calc(var(--side-w,316px) * .78))}
+  #sidepanel{grid-column:2;grid-row:1 / span 2}
+}
+/* 竖屏 / 手机：全部纵向堆叠，分隔条不适用 */
+@media (max-width:780px){
+  .splitter{display:none}
+  #app{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(220px,1fr) auto;padding:8px 8px 0}
+  #stage{grid-column:1;grid-row:1}
+  #tribebar{grid-column:1;grid-row:2;margin-top:8px}
+  #sidepanel{grid-column:1;grid-row:3;max-height:260px;overflow-y:auto}
+  #bottombar{flex:0 0 auto;max-height:150px}
+  .legend{display:none}
+}
+
+/* ---------- 中窄屏（<900px）：平板竖屏 / 小窗投影
+   820px 下顶栏四个区块总宽约 894px，会互相挤成多行；先砍掉副标题与字距。 */
+@media (max-width:900px){
+  header{gap:12px;padding:0 12px}
+  .brand{gap:8px}
+  .brand small{display:none}
+  .brand h1{font-size:15px;letter-spacing:1.2px}
+  .logo{width:32px;height:32px;font-size:16px;border-radius:9px}
+  .round-info{gap:9px;font-size:11px}
+  .round-info b{font-size:12.5px}
+  .seg button{padding:5px 10px;font-size:11px;letter-spacing:0}
+  .tb{padding:6px 11px;font-size:12px}
+}
+
+/* ---------- 手机竖屏（<620px）
+   整页不滚动：地图固定占上半屏（50%），其余（部落面板 / 日志 / 掷骰 / 土地手牌）
+   全部塞进 #scrollzone 竖向滑动。地图在 50% 的区域里居中，上下对称留白。 */
+@media (max-width:620px){
+  html,body{height:100vh;height:100dvh;overflow:hidden}
+  body{display:flex;flex-direction:column}
+
+  header{
+    flex:0 0 auto;height:auto;min-height:52px;
+    flex-wrap:wrap;gap:5px 10px;padding:6px 10px;
+  }
+  .brand{gap:8px;flex:1 1 auto;min-width:0}
+  .logo{width:30px;height:30px;font-size:15px;border-radius:8px}
+  .brand h1{font-size:14px;letter-spacing:1px}
+  .brand small{display:none}                 /* 副标题在窄屏是负担 */
+  .round-info{gap:9px;font-size:11px;order:3;width:100%}
+  .round-info b{font-size:12.5px}
+  .round-info .sep{display:none}
+  /* 按钮组独占一行：4 组控件挤一行放不下，「新游戏」会被挤出屏幕 */
+  .top-actions{order:4;width:100%;margin-left:0;gap:5px;
+               flex-wrap:wrap;justify-content:flex-start}
+  .seg{padding:1px;border-radius:8px}
+  .seg button{padding:4px 8px;font-size:10.5px;letter-spacing:0}
+  .tb{padding:5px 8px;font-size:11.5px;gap:3px}
+  /* 按钮里的文字在窄屏可省，只留图标 —— 「新游戏」曾被挤出屏幕 */
+  .tb-t{display:none}
+  .seg button{padding:4px 7px;font-size:10.5px;letter-spacing:0}
+
+  /* 主区改成纵向 flex：上=地图（占视口一半），下=滚动区 */
+  #app{
+    flex:1 1 auto;min-height:0;
+    display:flex;flex-direction:column;
+    gap:0;padding:0;
+  }
+  #stage{
+    /* 用 50dvh 而不是 50%：50% 是相对 #app（已扣掉顶栏）算的，
+       手机上顶栏会换行占三行，50% 出来只有 44%。 */
+    flex:0 0 50vh;flex-basis:50dvh;min-height:0;
+    border-radius:0;border-left:0;border-right:0;border-top:0;
+    padding:6px;
+  }
+  #scrollzone{
+    display:flex;flex-direction:column;gap:8px;
+    flex:1 1 auto;min-height:0;
+    overflow-y:auto;overflow-x:hidden;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;      /* 滑到底不带动整页 */
+    padding:8px 8px 16px;
+    background:linear-gradient(180deg,#f2ead8 0%,#e9dfc6 100%);
+    border-top:2px solid var(--gold-lo);
+  }
+
+  /* 滚动区内的各块都回到静态流；
+     关键是 flex:0 0 auto —— 桌面版 #sidepanel 带 min-height:0，
+     在这个 flex column 里会被压成 2px（日志和掷骰按钮直接盖到底栏上）。 */
+  #tribebar{margin-top:0}
+  #sidepanel{
+    grid-column:auto;grid-row:auto;
+    flex:0 0 auto;min-height:0;
+    max-height:none;overflow:hidden;
+  }
+  .panel-block.grow{flex:0 0 auto}
+  #log{flex:0 0 auto;height:132px;overflow-y:auto}
+  .splitter-v,.splitter-h{display:none}
+  /* 手机端竖列：图板占满宽度，竖列横跨 stage 底部的一条（土地卡横向滑动），
+     图板在上、这条在下，各占 stage 内一半左右。
+     top 必须显式清掉 —— 基线规则是桌面版的 top:10px。 */
+  .legend-col{
+    left:6px;right:6px;top:auto;bottom:6px;width:auto;max-width:none;
+    align-items:stretch;
+    gap:5px;                 /* 竖列内部两块之间不留大片空隙 */
+  }
+  .legend{display:none}                 /* 手机上本来就不显示图例 */
+
+  /* 手机上竖列是「压在图板下缘」的一条，内容必须矮，否则地图被挤没。
+     桌面端那种竖排卡片在这里改为横向细条：图标 + 名称 + 数量一行放下。
+     ⚠ 这条是绝对定位、会盖住图板下缘 —— 图板要让开，靠 main.js layoutBoard
+     把条高写进 #stage 的 padding-bottom（图板只在「条以上」居中）。改这里的高度
+     或结构时，注意别让底排赛道卡重新被盖住（ui.test.html 第 12 节会验）。 */
+  #cardhub{
+    padding:4px 5px;gap:4px;border-radius:8px;
+  }
+  .hub{flex-direction:row;gap:4px;padding:3px 6px}
+  .hub-ico{font-size:12px}
+  .hub-name{font-size:9.5px}
+  .hub .pill{font-size:9.5px;padding:0 5px;line-height:14px;margin-top:0}
+  .hub.urgent{padding:3px 6px}
+
+  #farmpanel{padding:4px 6px 5px}
+  #farmpanel h4{font-size:10px;margin-bottom:3px}
+  #myfarms{min-height:44px}
+  #farmpanel h4{font-size:10.5px;margin-bottom:4px}
+  #myfarms{
+    flex-direction:row;overflow-x:auto;overflow-y:hidden;
+    max-height:none;gap:6px;padding-bottom:2px;
+  }
+  #myfarms .hint{max-width:none}
+  .legend-col .farm{min-width:168px;flex:0 0 168px}
+  .legend-col .farm img{width:40px;height:31px}
+  .legend-col .fbtns{margin-top:3px}
+  /* 底栏只剩手牌一块：手机上横跨全宽，横向滑动看手牌 */
+  #bottombar{
+    flex:0 0 auto;max-height:min(24vh,124px);
+    padding:7px 10px;
+  }
+  #bottombar .bb-hand{width:auto;flex:1 1 auto;min-width:0}
+  .bb-item h4{font-size:11px;margin-bottom:5px}
+  .hscroll .farm{min-width:180px;margin-right:6px}
+
+  #players{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .pcard{padding:7px 8px}
+  .pcard .pmoney b{font-size:13px}
+  .pcard .pmotif{font-size:9px}
+  .log .li{font-size:11px;line-height:1.55}
+  .roll{font-size:13px;padding:11px 14px}
+  .panel-block{border-radius:8px}
+
+  /* ---------- 弹层在窄屏下 ----------
+     实测 414px 宽时，弹层内容区只有 306px，而 .cardgrid 是
+     minmax(152px,1fr)：152×2 + gap13 = 317 > 306，
+     于是选种的 10 张作物卡全退化成单列，要滚 4989px。
+     手机端改成「窄内边距 + 强制两列」。 */
+  .modal{padding:10px}
+  .modal-box{max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);border-radius:12px}
+  #modal-body{padding:14px 14px 18px;border-radius:12px}
+  .modal-box h3{font-size:16px;margin-bottom:11px}
+  .modal-box h4{font-size:13px;margin:14px 0 7px}
+  .cardgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:7px}
+  .cardgrid figcaption{font-size:10.5px;margin-top:4px}
+  /* 触屏最小点击区44px，原来的 30px 在手指上偏小 */
+  .modal-close{width:44px;height:44px;right:8px;top:8px;font-size:19px}
+  .rulelist{font-size:12px;line-height:1.8;margin-left:17px}
+  .traitlist li{margin-bottom:7px}
+  .motif-legend{grid-template-columns:repeat(2,1fr);gap:8px}
+  .motif-box .mi{width:36px;height:41px}
+  #setlist{gap:7px}
+  .setrow{padding:8px 10px}
+  .setmoney input{width:64px;padding:5px 6px}
+}
+
+/* hidden 必须真的隐藏（.modal/.banner 用 display:grid 会覆盖它） */
+[hidden]{display:none !important}
+
+/* 选种弹窗里改良卡/气象卡的加成标签 */
+.cc-bonus--imp{color:#3d6423;background:rgba(90,138,58,.14);border-color:rgba(61,100,35,.32)}
+.cc-bonus--wx{color:#1f5b7a;background:rgba(74,155,216,.14);border-color:rgba(31,91,122,.32)}
+.wxnote{
+  font-size:12px;line-height:1.7;color:var(--ink-2);
+  padding:7px 11px;margin:0 0 10px;border-radius:9px;
+  background:linear-gradient(180deg,#f2f8fc,#e6f0f7);
+  border:1px solid rgba(74,155,216,.3);
+}
+.wxnote b{color:var(--cinnabar-lo)}
+
+/* 种植弹层的「片数选择器」：肥力只是上限，玩家自选 1~剩余空位 */
+.qtybar{
+  display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+  margin:11px 0 4px;padding:9px 12px;border-radius:10px;
+  background:linear-gradient(180deg,#f7f2e6,#efe7d5);
+  border:1px solid rgba(160,140,100,.35);
+}
+.qtybar>span{font-size:12.5px;color:var(--ink-2)}
+.qtybar .qty-num{
+  min-width:2.1em;text-align:center;font-size:17px;font-weight:800;
+  color:var(--cinnabar);font-variant-numeric:tabular-nums;
+}
+.qtybar button{
+  width:30px;height:30px;border-radius:8px;font-size:17px;line-height:1;font-weight:800;
+  cursor:pointer;color:var(--ink-1);
+  background:linear-gradient(180deg,#fffdf7,#efe7d5);
+  border:1px solid rgba(140,120,80,.45);
+  box-shadow:0 1px 0 rgba(255,255,255,.7) inset;
+}
+.qtybar button:hover:not(:disabled){background:linear-gradient(180deg,#fff6dd,#f0e0b6)}
+.qtybar button:disabled{opacity:.35;cursor:not-allowed}
+.qtybar .qty-hint{font-size:11.5px;color:var(--ink-3)}
+.qtybar .qty-fill{
+  margin-left:auto;font-size:11.5px;font-weight:700;cursor:pointer;
+  padding:3px 10px;border-radius:999px;color:var(--cinnabar-lo);
+  background:rgba(200,60,40,.08);border:1px solid rgba(200,60,40,.28);
+}
+.qtybar .qty-fill:hover{background:rgba(200,60,40,.15)}
+
+/* 改良卡总增益徽章 */
+.impbonus{
+  margin-left:auto;font-size:10.5px;font-weight:700;letter-spacing:.2px;
+  padding:1px 8px;border-radius:10px;color:var(--ink-3);
+  background:rgba(160,140,100,.12);border:1px solid transparent;
+}
+.impbonus.on{color:#3d6423;background:rgba(90,138,58,.16);border-color:rgba(61,100,35,.3)}
+.tb.on{background:linear-gradient(180deg,#e8c96a,#c9a33a);border-color:#a5801f;color:#3a2c08}
+
+/* ---------- 电脑行动等待提示 ----------
+   只在正中显示一个小窗，**不遮挡棋盘** ——
+   玩家要能看见电脑的棋子在走、日志在刷，这些才是「电脑在干什么」的直接证据。
+   遮罩层本身完全透明，只负责拦截误点击（不能让人在这期间乱点操作区）。*/
+#waiting{
+  position:absolute;inset:0;z-index:30;
+  display:grid;place-items:center;
+  background:transparent;            /* 不遮棋盘 */
+  animation:waitFade .18s ease-out;
+}
+@keyframes waitFade{from{opacity:0}to{opacity:1}}
+.wait-box{
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  padding:11px 18px;border-radius:12px;max-width:270px;text-align:center;
+  background:linear-gradient(180deg,#fffdf7f2,#f2ead6f2);
+  border:1.5px solid var(--gold-lo);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 6px 20px rgba(80,60,30,.26);
+}
+.wait-head{display:flex;align-items:center;gap:7px}
+.wait-spinner{
+  width:15px;height:15px;border-radius:50%;flex:0 0 auto;
+  border:2.5px solid rgba(184,137,46,.28);border-top-color:var(--gold);
+  animation:spin .9s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.wait-who{font-size:13px;font-weight:700;color:var(--ink);letter-spacing:.4px;white-space:nowrap;
+  font-family:STKaiti,KaiTi,楷体,serif}
+.wait-act{font-size:12px;color:var(--cinnabar-lo);font-weight:700;white-space:nowrap}
+.wait-dots{display:flex;gap:4px}
+.wait-dots i{width:5px;height:5px;border-radius:50%;background:var(--gold);opacity:.35;
+  animation:dotPulse 1.2s ease-in-out infinite}
+.wait-dots i:nth-child(2){animation-delay:.18s}
+.wait-dots i:nth-child(3){animation-delay:.36s}
+@keyframes dotPulse{0%,100%{opacity:.3;transform:scale(1)}50%{opacity:1;transform:scale(1.3)}}
+
+/* 回到真人回合时给掷骰键一个 1.8 秒的醒目提示 */
+.roll.your-turn{
+  animation:yourTurn 1.8s ease-out;
+}
+@keyframes yourTurn{
+  0%,100%{box-shadow:0 2px 0 rgba(255,255,255,.5) inset,0 4px 0 var(--gold)}
+  25%,60%{
+    box-shadow:0 2px 0 rgba(255,255,255,.5) inset,0 0 0 4px rgba(229,196,121,.95),0 0 26px rgba(229,196,121,.9);
+  }
+}
+
+/* ---------- 三类手牌弹层：首行部落统计条 ---------- */
+.tribestat{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;
+  margin:9px 0 11px;
+}
+.ts-cell{
+  --tc:#999;
+  display:flex;align-items:center;gap:5px;
+  padding:6px 8px;border-radius:9px;
+  background:linear-gradient(180deg,#fffdf7,#f4ecda);
+  border:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(255,255,255,.85) inset;
+}
+.ts-cell.me{
+  border-color:var(--tc);
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--tc) 45%,transparent),0 1px 0 rgba(255,255,255,.85) inset;
+  background:linear-gradient(180deg,#fffef8,#f8f0dc);
+}
+.ts-dot{width:9px;height:9px;border-radius:3px;background:var(--tc);flex:0 0 auto}
+.ts-name{
+  flex:1 1 auto;min-width:0;font-size:11.5px;color:var(--ink-2);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.ts-name em{
+  font-style:normal;margin-left:4px;padding:0 4px;border-radius:5px;
+  font-size:9.5px;color:#fff;background:var(--tc);vertical-align:1px;
+}
+.ts-n{font-size:14px;font-weight:700;color:var(--tc);line-height:1}
+
+/* ---------- 每个部落的小节标题 ---------- */
+.tbh{
+  --tc:#999;
+  display:flex;align-items:center;gap:7px;
+  margin:15px 0 8px;padding-bottom:5px;
+  border-bottom:1px solid var(--line);
+  font-size:14px;color:var(--ink);
+  font-family:/STKaiti/,/KaiTi/,/楷体/,serif;letter-spacing:.8px;
+}
+.tbh:first-of-type{margin-top:10px}
+.tbh-dot{width:11px;height:11px;border-radius:4px;background:var(--tc);flex:0 0 auto}
+.tbh-x{margin-left:auto;font-size:11px;font-weight:400;color:var(--ink-3);
+  font-family:inherit;letter-spacing:0}
+#modal-body .hubgrid{margin-top:2px}
+
+/* ---------- 图鉴（参考书）---------- */
+.hb-tabs{
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;
+  margin:10px 0 12px;position:sticky;top:-4px;z-index:3;
+  padding:4px 0;background:linear-gradient(180deg,#fbf6ea 72%,rgba(251,246,234,0));
+}
+.hb-tab{
+  display:flex;flex-direction:column;align-items:center;gap:1px;
+  padding:6px 2px;border-radius:9px;cursor:pointer;font:inherit;
+  color:var(--ink-2);background:rgba(255,255,255,.65);
+  border:1px solid var(--line);transition:.15s;
+}
+.hb-tab:hover{background:#fff;border-color:var(--gold);transform:translateY(-1px)}
+.hb-tab .hb-ic{font-size:15px;line-height:1.15}
+.hb-tab{font-size:11px}
+.hb-tab em{
+  font-style:normal;font-size:10px;font-weight:700;
+  color:var(--ink-3);background:rgba(160,140,100,.14);
+  padding:0 6px;border-radius:8px;line-height:15px;
+}
+.hb-tab.on{
+  background:linear-gradient(180deg,#fdf6e4,#f3e6c8);
+  border-color:var(--gold);color:var(--ink);
+  box-shadow:0 0 0 1px rgba(184,137,46,.3),0 2px 8px rgba(80,60,30,.12);
+}
+.hb-tab.on em{background:var(--gold);color:#3a2c08}
+
+/* 图鉴卡：比手牌卡更密，因为信息量大 */
+.hubgrid .hbcard{
+  margin:0;border-radius:10px;overflow:hidden;
+  background:linear-gradient(180deg,#fffdf7,#f4ecda);
+  border:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 2px 6px rgba(80,60,30,.1);
+  display:flex;flex-direction:column;
+}
+.hubgrid .hbcard.dim{opacity:.82}          /* 无人持有：稍淡，但不完全隐藏 */
+.hubgrid .hbcard.good{border-color:#6ea757}
+.hubgrid .hbcard.bad{border-color:#c98b8b}
+.hubgrid .hbcard img{width:100%;display:block}
+.hubgrid .hbcard figcaption{
+  padding:7px 9px 9px;display:flex;flex-direction:column;gap:3px;flex:1 1 auto;
+}
+.hubgrid .hbcard figcaption b{
+  font-size:13.5px;font-family:/STKaiti/,/KaiTi/,/楷体/,serif;letter-spacing:.6px;
+}
+.hub-sub{font-size:10.5px;color:var(--ink-3)}
+.hb-num{font-size:11px;color:var(--cinnabar-lo);font-weight:700;line-height:1.55}
+.hb-kv{font-size:10.5px;color:var(--ink-2);line-height:1.6}
+.hb-kv em{font-style:normal;color:var(--gold-lo);font-weight:700}
+.hb-note{font-size:10px;color:var(--ink-3);line-height:1.65}
+.hb-crop{
+  display:inline-block;margin:1px 3px 1px 0;padding:0 5px;border-radius:7px;
+  font-size:10px;background:rgba(110,167,87,.16);color:#3d6423;border:1px solid rgba(61,100,35,.22);
+}
+/* 「持有」徽章行 */
+.hb{display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:10.5px;color:var(--ink-3);margin-top:2px}
+.hb.none{color:#a89878;font-style:italic}
+.hb-tag{
+  --tc:#999;
+  padding:0 6px;border-radius:8px;line-height:16px;
+  font-size:10px;color:#fff;background:var(--tc);
+}
+.hb-tag.me{box-shadow:0 0 0 1.5px var(--gold)}
+.hb-row{display:inline-flex;flex-wrap:wrap;gap:4px;margin-left:4px}
+.hb-row .hb-tag{color:#fff}
+
+/* 折叠的详细表 */
+.hb-detail{margin-top:3px}
+.hb-detail>summary{
+  cursor:pointer;font-size:10.5px;color:var(--azure);
+  padding:2px 0;list-style:none;user-select:none;
+}
+.hb-detail>summary::-webkit-details-marker{display:none}
+.hb-detail>summary::before{content:'▸ ';}
+.hb-detail[open]>summary::before{content:'▾ ';}
+.hb-table{width:100%;margin-top:3px;font-size:10px;border-collapse:collapse}
+.hb-table th,.hb-table td{padding:1.5px 4px;border-bottom:1px solid var(--line);text-align:left}
+.hb-table th{background:rgba(160,140,100,.1);color:var(--ink-2)}
+.hb-table tr.row-good{background:rgba(110,167,87,.14)}
+
+/* 站点卡 */
+.stgrid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+.hubgrid .hbcard.st .st-ico{
+  display:flex;align-items:center;gap:6px;
+  padding:9px 10px;font-size:12.5px;font-weight:700;color:#fff;
+  background:linear-gradient(135deg,var(--stc),color-mix(in srgb,var(--stc) 62%,#000));
+}
+.hubgrid .hbcard.st .st-dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.85)}
+#modal-body .hbcard .wikibtn--mini{align-self:flex-start}
+
+/* ---------- 付费土壤检测：未付费时整张表雾化 ---------- */
+.fogwrap{position:relative;margin-top:2px}
+/* 未付费：底层文字保留在 DOM 里（做 SEO/无障碍不必要），但视觉上盖住。
+   用两层模糊叠加 —— 单纯 blur 会让表头也糊掉，读不出作物名。 */
+.revealtable.fogged{
+  filter:blur(4.5px) saturate(.35) opacity(.5);
+  user-select:none;pointer-events:none;
+}
+.fogveil{
+  position:absolute;left:0;right:0;top:0;
+  display:grid;place-items:center;height:38px;
+  margin-top:38px;                 /* 让开表头那一行 */
+  pointer-events:none;
+}
+.fogveil span{
+  padding:5px 14px;border-radius:11px;font-size:12px;font-weight:700;
+  color:#6b4f22;background:rgba(255,250,238,.94);
+  border:1px solid var(--gold-lo);
+  box-shadow:0 2px 10px rgba(80,60,30,.22);
+  white-space:nowrap;
+}
+/* 未付费时数字位显示「？？」 */
+.fogcell{color:var(--ink-3)}
+.fogtxt{
+  display:inline-block;min-width:44px;padding:0 4px;border-radius:5px;
+  background:linear-gradient(180deg,#efe6d2,#e3d7bd);
+  color:transparent;user-select:none;
+  text-shadow:0 0 7px rgba(90,70,40,.55);
+}
+.revealed-tag{
+  display:inline-block;margin-left:8px;padding:1px 9px;border-radius:9px;
+  font-size:10.5px;font-weight:400;vertical-align:2px;
+  color:#3d6423;background:rgba(90,138,58,.16);border:1px solid rgba(61,100,35,.28);
+}
+
+/* ---------- 无种子：不可种（种子是硬门槛）---------- */
+.cc-noseed{
+  color:#a03028 !important;background:rgba(160,48,40,.1)!important;
+  border-color:rgba(160,48,40,.3)!important;font-weight:700;
+}
+.cardgrid figure.noseed img{filter:grayscale(.72) brightness(.94)}
+.cardgrid figure.noseed figcaption{opacity:.9}
+.cardgrid figure.noseed::after{
+  content:'无种子';position:absolute;left:50%;top:38%;
+  transform:translate(-50%,-50%) rotate(-11deg);
+  padding:3px 12px;border-radius:8px;
+  font-size:13px;font-weight:700;color:#fff;letter-spacing:2px;
+  background:rgba(160,48,40,.88);box-shadow:0 2px 8px rgba(80,30,20,.3);
+  pointer-events:none;white-space:nowrap;
+}
+/* 有种子但不够本次要种的片数（一片一张）—— 与「无种子」区分开 */
+.cardgrid figure.notenough img{filter:grayscale(.35) brightness(.97)}
+.cardgrid figure.notenough::after{
+  content:'种子不足';position:absolute;left:50%;top:38%;
+  transform:translate(-50%,-50%) rotate(-11deg);
+  padding:3px 12px;border-radius:8px;
+  font-size:13px;font-weight:700;color:#fff;letter-spacing:2px;
+  background:rgba(176,120,32,.9);box-shadow:0 2px 8px rgba(80,50,10,.3);
+  pointer-events:none;white-space:nowrap;
+}
+.cardgrid figure{position:relative}
+
+/* ---------- 土地卡整卡可点（看详情） ---------- */
+#myfarms .farm{
+  cursor:pointer;
+  transition:box-shadow .15s,transform .15s;
+}
+#myfarms .farm:hover{
+  box-shadow:0 0 0 1.5px var(--gold),0 3px 10px rgba(80,60,30,.18);
+  transform:translateY(-1px);
+}
+#myfarms .farm:hover img{filter:saturate(1.08) brightness(1.02)}
+/* 卡片本体可点，但里面的按钮保持自己的手型光标 */
+#myfarms .farm .fbtns .mini{cursor:pointer}
+#myfarms .farm .mini:disabled{cursor:not-allowed;opacity:.45}
+
+/* ⚠️ 本项目里凡是「自己写了 display 的浮层」都必须补一条 [hidden]{display:none}。
+   作者样式的优先级压过浏览器 UA 的 [hidden]{display:none}，
+   漏了会导致 hidden=true 时元素仍铺满全屏、把所有点击吃掉，
+   而控制台一行错误都没有（症状极难判断，2026-10-18 踩过一次）。
+   已补齐：#ordergate / #loading / #waiting（.modal / .banner 走各自的类规则）。 */
+#loading[hidden],#waiting[hidden]{display:none}
+
+/* ---------- 行动顺序：弹窗（原顶栏常驻条已改为 #btn-order 按钮） ----------
+   2026-10-15：顺序条从顶栏搬进弹窗。原来它常驻顶栏，把右对齐的顶栏挤到换行；
+   而且开局那一刻玩家往往没在看它。现在开新局自动弹一次，之后可点顶栏
+   「🔀 行动顺序」随时再看。
+   .os-chip 三个状态与原来一致（on = 当前行动者、done = 已行动过）。 */
+.ordergate{
+  position:fixed;inset:0;z-index:210;          /* 比 #intro(200) 高、开篇之上也能弹 */
+  display:flex;align-items:center;justify-content:center;
+  /* 遮罩要压得住底下的日志/棋盘：单纯 46% 不够，
+     左下角那一片深色日志在浅遮罩上仍然清晰可读，会抢弹窗的注意力。 */
+  background:rgba(38,30,18,.62);
+  backdrop-filter:blur(3px) saturate(.85);
+}
+/* ⚠️ 这条必须有：上面的 display:flex 是**作者样式**，优先级压过浏览器 UA 的
+   [hidden]{display:none} —— 不写这一条，hidden=true 时元素照样铺满屏幕、
+   z-index 210 盖住整个页面，所有点击都被它吃掉（症状：测试大量段落不执行、
+   按钮点了没反应，但控制台一行错都没有）。
+   与 .intro-layer.gone 是同一类坑：这个项目里凡是自己写了 display 的
+   浮层，都必须再补一条 [hidden]{display:none}。 */
+.ordergate[hidden]{display:none}
+.og-box{
+  min-width:min(680px,92vw);max-width:92vw;
+  padding:30px 34px 24px;
+  background:linear-gradient(180deg,#fffdf6,#f6efdf);
+  border:2px solid var(--gold-lo);border-radius:18px;
+  box-shadow:0 24px 60px rgba(30,20,8,.5),0 0 0 8px rgba(184,137,46,.10);
+  text-align:center;
+}
+.og-title{
+  margin:0 0 4px;font-size:19px;letter-spacing:4px;font-weight:700;color:var(--ink);
+  font-family:"STKaiti","KaiTi","楷体",serif;
+}
+.og-sub{margin:0 0 16px;font-size:12px;color:var(--ink-3);letter-spacing:.3px}
+.og-strip{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap}
+.og-strip .os-chip{
+  --tc:#999;
+  display:inline-flex;align-items:center;gap:5px;
+  padding:7px 15px;border-radius:11px;
+  font-size:14px;line-height:20px;letter-spacing:.6px;font-weight:600;
+  color:var(--ink-2);
+  background:rgba(255,255,255,.78);
+  border:1.5px solid var(--line);
+  white-space:nowrap;transition:.15s;
+}
+.og-strip .os-chip.on{
+  color:#fff;background:var(--tc);border-color:var(--tc);font-weight:700;
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--tc) 32%,transparent);
+}
+.og-strip .os-chip.done{opacity:.42}
+/* 顺序之间的箭头：只在宽屏显示，窄屏靠卡片下方的「第 N 位」文字 */
+.og-strip .og-arrow{color:var(--ink-3);font-size:13px;user-select:none}
+.og-pos{
+  display:block;font-size:10px;font-weight:400;letter-spacing:.5px;
+  color:var(--ink-3);opacity:.9;
+}
+.og-strip .os-chip.on .og-pos{color:rgba(255,255,255,.88)}
+.og-note{
+  margin:14px 0 0;font-size:12px;color:var(--ink-2);line-height:1.7;
+  min-height:1.7em;
+}
+.og-actions{margin-top:20px}
+.og-actions .btn-primary{
+  min-width:190px;
+  padding:11px 34px;border-radius:999px;cursor:pointer;font-family:inherit;
+  font-size:14px;letter-spacing:2.5px;font-weight:600;color:#fff8ec;
+  text-shadow:0 1px 2px rgba(60,16,10,.5);
+  background:linear-gradient(180deg,#e0a63c,#c4453a 52%,#9c2f26);
+  border:1px solid #6e1c15;
+  box-shadow:0 1px 0 rgba(255,225,175,.6) inset,0 -3px 8px rgba(90,20,12,.45) inset,0 6px 16px rgba(90,30,15,.42);
+  transition:transform .16s,filter .16s;
+}
+.og-actions .btn-primary:hover{filter:brightness(1.06)}
+.og-actions .btn-primary:active{transform:translateY(1px)}
+@media (max-width:560px){
+  .og-box{padding:20px 16px 16px}
+  .og-strip{gap:6px}
+  .og-strip .os-chip{padding:5px 11px;font-size:12.5px}
+  .og-strip .og-arrow{display:none}
+
+/* ============================================================
+   农耕志 · 图例下方的荣誉入口 + 弹层
+   ------------------------------------------------------------
+   纯展示层：只读写 localStorage['cnvillage.codex.v1']，
+   不碰对局状态 G。样式类一律 cx- 前缀，避免与游戏既有类冲突。
+   ============================================================ */
+
+/* ---------- 入口：图例正下方的鎏金匾额 ---------- */
+#codex-entry{
+  flex:0 0 auto;position:relative;overflow:hidden;
+  display:flex;align-items:center;gap:8px;width:100%;
+  padding:8px 10px;cursor:pointer;font-family:inherit;text-align:left;
+  border-radius:var(--radius);border:1px solid var(--gold-lo);
+  pointer-events:auto;                     /* 竖列现在是可滚容器（吃自己的点击），这里显式写一份以防日后改回 */
+  background:
+    radial-gradient(120% 90% at 8% 0%, rgba(255,253,247,.98) 0%, rgba(255,253,247,0) 62%),
+    linear-gradient(180deg,#fdf7e6 0%,#f3e6c4 55%,#eeddb4 100%);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.9) inset,
+    0 -1px 0 rgba(150,118,50,.18) inset,
+    0 0 0 1px rgba(255,246,214,.6) inset,
+    0 2px 6px rgba(120,85,20,.16),
+    0 8px 20px rgba(150,110,30,.14);
+  transition:transform .18s, box-shadow .18s, filter .18s;
+}
+/* 顶沿一道鎏金细线 */
+#codex-entry::after{
+  content:'';position:absolute;left:0;right:0;top:0;height:2px;pointer-events:none;
+  background:linear-gradient(90deg,transparent 0%,var(--gold-hi) 22%,var(--gold) 50%,var(--gold-hi) 78%,transparent 100%);
+  opacity:.85;
+}
+/* 缓慢扫过的拂光，用来吸引目光 */
+#codex-entry::before{
+  content:'';position:absolute;top:-60%;left:-70%;width:45%;height:220%;pointer-events:none;
+  background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,250,230,.9),rgba(255,255,255,0));
+  transform:rotate(18deg);
+  animation:ce-sheen 5.2s ease-in-out infinite;
+}
+@keyframes ce-sheen{
+  0%,70%{left:-70%}
+  100%{left:135%}
+}
+#codex-entry:hover{
+  transform:translateY(-2px);filter:brightness(1.03);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.95) inset,
+    0 0 0 1px rgba(255,246,214,.7) inset,
+    0 4px 12px rgba(140,95,20,.24),
+    0 12px 26px rgba(184,137,46,.34);
+}
+#codex-entry:active{transform:translateY(0)}
+#codex-entry:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+.ce-seal{
+  flex:0 0 auto;width:26px;height:26px;border-radius:6px;
+  display:grid;place-items:center;font-size:14px;font-weight:800;
+  color:#fff3e6;font-family:"STKaiti","KaiTi","楷体",serif;
+  background:linear-gradient(160deg,#d4574a,#a92b21);
+  border:1px solid rgba(255,240,228,.5);
+  box-shadow:0 1px 3px rgba(140,42,32,.4),0 0 0 2px rgba(255,253,247,.7);
+  transform:rotate(-6deg);
+  transition:transform .3s cubic-bezier(.3,1.6,.5,1);
+}
+#codex-entry:hover .ce-seal{transform:rotate(0deg) scale(1.08)}
+.ce-mid{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}
+.ce-name{
+  font-size:13px;font-weight:800;letter-spacing:2px;color:#7a5610;
+  font-family:"STKaiti","KaiTi","楷体",serif;
+  text-shadow:0 1px 0 rgba(255,255,255,.8);
+}
+.ce-sub{
+  font-size:9.5px;color:#a08551;letter-spacing:.4px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.ce-pct{
+  flex:0 0 auto;font-size:11px;font-weight:800;color:#fff5e8;
+  padding:2px 7px;border-radius:9px;letter-spacing:.5px;
+  background:linear-gradient(180deg,var(--bronze-hi),var(--bronze));
+  box-shadow:0 1px 0 rgba(255,255,255,.35) inset,0 1px 2px rgba(0,0,0,.18);
+  transition:background .3s;
+}
+.ce-pct.full{background:linear-gradient(180deg,var(--gold-hi),var(--gold));color:#4a3408}
+
+/* ---------- 竖列最下方：手牌（作物卡 + 改良卡） ----------
+   从底栏搬上来的。牌面卡片 58×81 在 236px 的竖列里放不下三个，
+   所以整块做成「窄列版」：卡片缩小 + 横向滚动，标题压成两行。
+   竖列可滚，牌多时横向滚，不参与竖向压缩。 */
+.legend-hand{
+  display:flex;flex-direction:column;min-height:0;
+  /* flex:0 0 auto —— 手牌是玩家每回合都要看的信息，不参与竖向压缩；
+     竖列装不下时由 .legend-hand 之外的部分让位 + 竖列整体滚动。 */
+  flex:0 0 auto;
+  background:rgba(255,253,247,.92);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:7px 8px 8px;
+  box-shadow:0 2px 10px rgba(80,60,30,.14);
+  backdrop-filter:blur(4px);
+}
+.legend-hand h4{
+  font-size:11px;color:#4a3f2c;margin-bottom:6px;letter-spacing:1px;
+  font-family:"STKaiti","KaiTi","楷体",serif;
+  display:flex;align-items:center;gap:5px;flex-wrap:wrap;flex:0 0 auto;
+}
+.legend-hand h4 .impbonus{margin-left:auto}
+.legend-hand .seedrow{margin-bottom:6px;min-height:0}
+.legend-hand .seedchip{padding:2px 6px;font-size:10.5px}
+/* 牌面：竖列窄，卡片按比例缩到 ~46px 宽，正好一行三张 */
+.legend-hand .hcard{width:46px;height:64px}
+.legend-hand .hand{
+  flex-wrap:nowrap;                       /* 窄列不换行，改横滚 —— 换行会把竖列撑得极高 */
+  gap:6px;
+  max-height:none;
+  overflow-x:auto;overflow-y:hidden;
+  padding-bottom:3px;
+}
+.legend-hand .hand .hcard{flex:0 0 auto}
+
+/* 竖列被压窄的两档：副标题先让位（名字 + 百分比更有信息量） */
+@media (min-width:1000px) and (max-width:1300px){
+  .ce-sub{display:none}
+}
+@media (min-width:1000px) and (max-width:1120px){
+  #codex-entry{gap:6px;padding:7px 8px}
+  .ce-name{font-size:12px;letter-spacing:1.4px}
+  .ce-seal{width:23px;height:23px;font-size:12.5px}
+}
+/* 手机端：竖列变成压在图板下缘的一条，入口压成细行，别占高度 */
+@media (max-width:620px){
+  #codex-entry{gap:6px;padding:4px 8px;border-radius:8px}
+  .ce-seal{width:19px;height:19px;font-size:11px;border-radius:4px}
+  .ce-name{font-size:11px;letter-spacing:1.2px}
+  .ce-sub{display:none}
+  .ce-pct{font-size:10px;padding:1px 6px}
+}
+@media (prefers-reduced-motion:reduce){
+  #codex-entry::before{animation:none;display:none}
+}
+
+/* ---------- 弹层内部 ---------- */
+.cx-idcard{
+  display:flex;align-items:center;gap:14px;padding:12px 14px;margin-bottom:12px;
+  border-radius:var(--radius);position:relative;overflow:hidden;
+  background:linear-gradient(180deg,#fffdf7,#f6f0e0);border:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 3px 12px rgba(80,60,30,.10);
+}
+.cx-idcard::after{
+  content:'';position:absolute;right:-40px;top:-40px;width:150px;height:150px;border-radius:50%;
+  background:radial-gradient(circle, rgba(184,137,46,.14), rgba(184,137,46,0) 70%);
+}
+.cx-avatar{
+  width:52px;height:52px;flex:0 0 auto;border-radius:10px;display:grid;place-items:center;
+  font-size:21px;font-weight:800;color:#fff2d8;font-family:"STKaiti","KaiTi","楷体",serif;
+  background:linear-gradient(160deg,#6f9bd4,#3a6c9e);border:2px solid var(--gold-hi);
+  box-shadow:0 2px 6px rgba(50,60,80,.28),0 0 0 3px rgba(255,253,247,.9);
+}
+.cx-who{flex:1 1 auto;min-width:0}
+.cx-who .nm{font-size:14px;font-weight:800;letter-spacing:1px}
+.cx-who .tt{font-size:11.5px;color:var(--ink-2);margin-top:3px}
+.cx-who .tt b{color:var(--cinnabar-lo)}
+.cx-stats{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
+.cx-chip{
+  font-size:10.5px;padding:1px 8px;border-radius:9px;color:#fff;font-weight:700;
+  background:linear-gradient(180deg,var(--bronze-hi),var(--bronze));
+  box-shadow:0 1px 0 rgba(255,255,255,.35) inset,0 1px 2px rgba(0,0,0,.16);
+}
+.cx-chip.gold{background:linear-gradient(180deg,var(--gold-hi),var(--gold));color:#4a3408}
+.cx-chip.red{background:linear-gradient(180deg,#d9695d,var(--cinnabar))}
+.cx-ring{
+  width:64px;height:64px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;position:relative;
+  background:conic-gradient(var(--bronze) calc(var(--p) * 1%), #e7dcc4 0);
+}
+.cx-ring::before{
+  content:'';position:absolute;inset:5px;border-radius:50%;
+  background:linear-gradient(180deg,#fffdf7,#f2ead8);border:1px solid var(--line);
+}
+.cx-ring span{position:relative;font-size:13px;font-weight:800;color:var(--bronze);text-align:center;line-height:1.1}
+.cx-ring span i{display:block;font-size:9px;font-weight:600;color:var(--ink-3);font-style:normal;letter-spacing:1px}
+
+.cx-tabs{display:flex;gap:5px;margin-bottom:12px;flex-wrap:wrap}
+.cx-tab{
+  font-family:inherit;font-size:12px;letter-spacing:1px;cursor:pointer;
+  padding:7px 14px;border-radius:9px 9px 0 0;color:var(--ink-2);
+  background:linear-gradient(180deg,#f3ecdc,#e6dcc6);border:1px solid var(--line);border-bottom:0;
+  box-shadow:0 1px 0 rgba(255,255,255,.8) inset;transition:.15s;
+}
+.cx-tab:hover{color:var(--gold-lo);border-color:var(--gold)}
+.cx-tab.on{
+  background:linear-gradient(180deg,#fffdf7,#f8f2e2);color:var(--wood);font-weight:800;
+  box-shadow:0 -2px 0 var(--gold) inset,0 1px 0 rgba(255,255,255,.9) inset;
+}
+.cx-panel{
+  padding:14px 16px;border-radius:0 var(--radius) var(--radius) var(--radius);
+  background:linear-gradient(180deg,#fffdf7,#f8f2e3);border:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 3px 12px rgba(80,60,30,.10);
+}
+.cx-h{
+  font-size:12.5px;letter-spacing:1.5px;color:var(--wood);font-weight:800;
+  padding-bottom:6px;margin:0 0 10px;border-bottom:1px dashed var(--line);
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+}
+.cx-h.mt{margin-top:16px}
+.cx-h em{font-style:normal;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:0}
+
+/* 我的农事：个性化问答 */
+.cx-qgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+@media (max-width:760px){.cx-qgrid{grid-template-columns:1fr}}
+.cx-q{
+  position:relative;padding:12px 13px;border-radius:10px;
+  background:linear-gradient(180deg,#fffefa,#f7f1e1);border:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 2px 6px rgba(80,60,30,.08);transition:.18s;
+}
+.cx-q.done{
+  border-color:var(--gold);background:linear-gradient(180deg,#fffdf3,#fbf3dc);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 3px 10px rgba(184,137,46,.20);
+}
+.cx-qno{
+  position:absolute;left:-6px;top:-6px;width:21px;height:21px;border-radius:50%;
+  display:grid;place-items:center;font-size:10.5px;font-weight:800;
+  background:linear-gradient(180deg,var(--gold-hi),var(--gold));color:#4a3408;
+  box-shadow:0 1px 3px rgba(80,60,30,.3);
+}
+.cx-qt{font-size:12.5px;font-weight:800;color:var(--ink);margin-bottom:3px;padding-left:14px}
+.cx-qn{font-size:10.5px;color:var(--ink-3);margin-bottom:8px;padding-left:14px;line-height:1.6}
+.cx-qn b{color:#a06a1c;font-weight:700}
+.cx-ta{
+  width:100%;min-height:54px;resize:vertical;font-family:inherit;font-size:12px;
+  color:var(--ink);line-height:1.6;padding:7px 9px;border-radius:8px;
+  background:#fffef9;border:1px solid var(--line);outline:none;transition:.15s;
+}
+.cx-ta:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(184,137,46,.14)}
+.cx-qrow{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+.cx-rw{font-size:10.5px;color:var(--ink-3);margin-left:auto}
+.cx-rw b{color:var(--bronze)}
+.cx-seal{
+  position:absolute;right:11px;top:9px;width:46px;height:46px;border-radius:6px;
+  display:grid;place-items:center;text-align:center;line-height:1.05;
+  font-size:9px;font-weight:800;letter-spacing:.5px;color:#fff5ec;
+  background:linear-gradient(160deg,#d4574a,#a92b21);border:2px solid rgba(255,245,236,.55);
+  box-shadow:0 2px 6px rgba(140,42,32,.35);
+  transform:rotate(-9deg) scale(.4);opacity:0;transition:.32s cubic-bezier(.3,1.6,.5,1);pointer-events:none;
+}
+.cx-q.done .cx-seal{transform:rotate(-9deg) scale(1);opacity:1}
+
+/* 通用小按钮 */
+.cx-btn{
+  font-family:inherit;font-size:11px;letter-spacing:.5px;cursor:pointer;
+  padding:5px 12px;border-radius:7px;color:var(--ink-2);
+  background:linear-gradient(180deg,#fffdf7,#ece2ca);border:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(255,255,255,.85) inset,0 1px 2px rgba(80,60,30,.10);transition:.15s;
+}
+.cx-btn:hover{border-color:var(--gold);color:var(--gold-lo);transform:translateY(-1px)}
+.cx-btn:active{transform:translateY(0);box-shadow:var(--press)}
+.cx-btn[disabled]{opacity:.45;cursor:default;transform:none}
+.cx-btn.primary{
+  color:#4a3408;background:linear-gradient(180deg,#e8c46a,#c99b2e);
+  border-color:var(--gold-lo);text-shadow:0 1px 0 rgba(255,240,200,.4);font-weight:700;
+}
+
+/* 进度条 */
+.cx-line{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+.cx-line .lb{font-size:11px;color:var(--ink-2);white-space:nowrap;min-width:34px}
+.cx-bar{flex:1 1 auto;height:8px;border-radius:6px;background:#e9dfc9;overflow:hidden;
+  box-shadow:0 1px 2px rgba(80,60,30,.14) inset}
+.cx-bar i{display:block;height:100%;border-radius:6px;
+  background:linear-gradient(90deg,var(--gold-hi),var(--gold));
+  box-shadow:0 1px 0 rgba(255,255,255,.35) inset;transition:width .5s}
+.cx-line .vv{font-size:10.5px;color:var(--ink-3);white-space:nowrap;font-variant-numeric:tabular-nums}
+
+/* 图鉴格子 */
+.cx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px}
+.cx-card{
+  position:relative;padding:8px 9px;border-radius:9px;min-height:70px;
+  background:linear-gradient(180deg,#fffefa,#f7f1e1);border:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 2px 5px rgba(80,60,30,.08);
+}
+.cx-card .nm{font-size:11.5px;font-weight:800;color:var(--ink);letter-spacing:.5px}
+.cx-card .sn{font-size:10px;color:var(--ink-3);margin-top:3px;line-height:1.45}
+.cx-card .ic{position:absolute;right:7px;bottom:5px;font-size:15px;opacity:.3}
+.cx-card.lk{
+  background:repeating-linear-gradient(45deg,#f2ecdd 0 6px,#ece5d3 6px 12px);
+  border-style:dashed;box-shadow:none;
+}
+.cx-card.lk .nm,.cx-card.lk .sn{color:#b6ab94}
+.cx-card .lk-ic{position:absolute;right:7px;bottom:5px;font-size:14px;opacity:.5}
+
+/* 成就行 */
+.cx-ach{
+  display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:10px;margin-bottom:8px;
+  background:linear-gradient(180deg,#fffefa,#f7f1e1);border:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 2px 5px rgba(80,60,30,.08);
+}
+.cx-ach.got{
+  border-color:var(--gold);background:linear-gradient(180deg,#fffdf3,#fbf2d9);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 3px 10px rgba(184,137,46,.20);
+}
+.cx-stamp{
+  width:44px;height:44px;flex:0 0 auto;border-radius:7px;display:grid;place-items:center;
+  font-size:19px;font-weight:800;color:#bdb29a;font-family:"STKaiti","KaiTi","楷体",serif;
+  background:repeating-linear-gradient(45deg,#f2ecdd 0 5px,#e8e0cc 5px 10px);border:1px dashed #cfc2a6;
+}
+.cx-ach.got .cx-stamp{
+  color:#fff5ec;background:linear-gradient(160deg,#d4574a,#a92b21);
+  border:2px solid rgba(255,245,236,.55);box-shadow:0 2px 6px rgba(140,42,32,.32);
+}
+.cx-ach .mid{flex:1 1 auto;min-width:0}
+.cx-ach .mid .hh{font-size:12.5px;font-weight:800;letter-spacing:.5px}
+.cx-ach .mid .dd{font-size:10.5px;color:var(--ink-3);margin:2px 0 5px}
+.cx-ach .mid .cx-line{margin:0}
+.cx-ach .rw{font-size:10.5px;color:var(--ink-2);text-align:right;white-space:nowrap;flex:0 0 auto}
+.cx-ach .rw b{display:block;font-size:11.5px;color:var(--cinnabar-lo)}
+.cx-ach.got .rw b{color:var(--gold-lo)}
+
+/* 探索足迹 */
+.cx-trace{display:flex;flex-direction:column;gap:6px}
+.cx-tr{
+  display:flex;align-items:center;gap:9px;font-size:11.5px;color:var(--ink-2);
+  padding:6px 10px;border-radius:8px;background:#fffdf6;border:1px solid #e7ddc7;
+}
+.cx-tr .k{font-size:14px;opacity:.6;flex:0 0 auto}
+.cx-tr time{color:var(--ink-3);font-size:10.5px;font-variant-numeric:tabular-nums;margin-left:auto;white-space:nowrap}
+.cx-empty{
+  font-size:11.5px;color:var(--ink-3);padding:16px;text-align:center;
+  border:1px dashed var(--line);border-radius:9px;
+}
+
+/* 页脚说明 */
+.cx-note{
+  margin-top:14px;padding:10px 14px;border-radius:9px;font-size:11px;color:var(--ink-2);
+  line-height:1.8;background:rgba(255,253,247,.72);border:1px dashed var(--line);
+}
+.cx-note b{color:var(--cinnabar-lo)}
+.cx-note code{font-size:10.5px;background:#efe7d4;padding:1px 6px;border-radius:5px;color:#6b5a34}
+
+/* 提示条（荣誉层专用，与游戏无关） */
+.cx-toast{
+  position:fixed;left:50%;bottom:30px;transform:translate(-50%,26px);opacity:0;
+  padding:10px 20px;border-radius:11px;font-size:12.5px;font-weight:700;letter-spacing:1px;
+  color:#fff6e6;background:linear-gradient(180deg,#5a7f4f,#3d6432);
+  border:1px solid rgba(255,255,255,.35);box-shadow:0 10px 28px rgba(40,40,20,.34);
+  transition:.28s;pointer-events:none;z-index:9999;max-width:80vw;text-align:center;
+}
+.cx-toast.on{transform:translate(-50%,0);opacity:1}
+.cx-toast.gold{background:linear-gradient(180deg,#c9a24a,#9a7420);
+  box-shadow:0 10px 28px rgba(120,85,20,.4)}
+
+/* ============================================================
+   新手教程「小禾」问答手册 + 底面《随农记》（见 src/aihelper.js）
+   ------------------------------------------------------------
+   独立浮层：不读写对局状态 G，不碰引擎 / 规则 / 平衡；纯静态问答，不联网。
+   宽屏（≥1500px）：为教程「常驻预留」右侧一条窄列
+     （只动 #app 的 padding-right，不改它的 grid 列定义，图板由 main.js 的
+      layoutBoard() 自动重算），开合教程都不影响图板几何。
+   窄屏 / 手机（<1500px）：改右侧弹出面板 + 右下角悬浮灯笼罩，功能与 PC 一致。
+   所有样式都收在 #aihelper 作用域内，避免与游戏既有类名冲突。
+   ============================================================ */
+body{--ai-w:340px}
+#aihelper{
+  display:none;                            /* 默认不显示，媒体查询里才启用 */
+  position:fixed;z-index:26;
+  flex-direction:column;
+  pointer-events:none;                     /* 容器不吃事件，只有面板/按钮可点 */
+}
+/* 面板 */
+#aihelper .ai-slot{flex:1 1 auto;min-height:0;display:none;position:relative;pointer-events:auto}
+body.ai-open #aihelper .ai-slot{display:flex}
+
+/* 收起时停在预留列里的灯笼罩 —— **PC（≥1500px）专用**，手机端入口在底栏 #ai-entry */
+#aihelper .ai-launch{display:none}
+@media (min-width:1500px){
+  #aihelper .ai-launch{
+    display:flex;align-items:center;gap:7px;margin:auto 0;align-self:flex-end;pointer-events:auto;
+    padding:10px 15px 10px 12px;border-radius:999px;
+    cursor:pointer;font-family:inherit;font-size:12.5px;letter-spacing:1.5px;font-weight:600;color:#5a2018;
+    background:linear-gradient(180deg,#e0a63c,#c4453a 52%,#a3312a);border:1px solid #7a2019;
+    box-shadow:0 1px 0 rgba(255,220,170,.55) inset,0 -3px 8px rgba(90,20,12,.4) inset,0 6px 18px rgba(120,40,25,.45);
+    transition:transform .18s,filter .18s;
+  }
+  #aihelper .ai-launch:hover{transform:translateY(-2px);filter:brightness(1.06)}
+  #aihelper .ai-launch-ic{font-size:17px;filter:drop-shadow(0 0 6px rgba(255,190,90,.8))}
+  body.ai-open #aihelper .ai-launch{display:none}
+}
+
+/* 宽屏：启用教程，并常驻预留右侧一条窄列（开合都不改，避免图板忽大忽小） */
+@media (min-width:1500px){
+  #aihelper{display:flex;right:12px;top:72px;bottom:calc(var(--bottom-h,52px) + 10px);width:var(--ai-w)}
+  #app{padding-right:calc(var(--ai-w) + 22px)}
+}
+/* 窄屏 / 手机：右侧弹出面板（功能与 PC 一致） */
+@media (max-width:1499.98px){
+  #aihelper{display:block;left:0;right:0;top:0;bottom:0;width:auto}
+  #aihelper .ai-tag{display:none}
+  #aihelper .ai-slot{position:fixed;right:0;bottom:0;left:auto;width:min(440px,100%);
+    height:min(80vh,660px);border-radius:16px 0 0 0;overflow:hidden;
+    box-shadow:0 -14px 44px rgba(0,0,0,.42)}
+  body.ai-open #aihelper{pointer-events:auto;background:rgba(24,18,10,.44)}
+}
+
+/* ---------- 底栏入口：新手教程 / 随农记（**只给手机 / 窄屏用**） ----------
+   挂在 #bottombar（index.html）里。
+   ⚠ PC（≥1500px）保持原样：那边入口仍是教程列里的灯笼罩 `.ai-launch`，
+     所以这两个按钮默认 display:none，只在窄屏媒体查询里启用。
+   事件在 src/aihelper.js 绑定；这里只管样式与排布。
+   ⚠ 底栏高度已砍到 52px（手牌搬去竖列），所以这里是**一行横排**：
+     原来竖排两枚药丸要 ~80px，在 52px 的栏里会被裁掉下半截。 */
+#bottombar .bb-entry{display:none}
+@media (max-width:1499.98px){
+  #bottombar .bb-entry{
+    flex:0 0 auto;min-width:0;
+    display:flex;flex-direction:row;align-items:center;justify-content:center;gap:8px;
+  }
+}
+#bottombar .ai-entry-btn{
+  display:flex;align-items:center;justify-content:center;gap:5px;
+  padding:5px 12px;border-radius:999px;cursor:pointer;font-family:inherit;
+  font-size:12px;letter-spacing:1.2px;font-weight:600;color:#5a2018;white-space:nowrap;
+  background:linear-gradient(180deg,#e0a63c,#c4453a 52%,#a3312a);
+  border:1px solid #7a2019;
+  box-shadow:0 1px 0 rgba(255,220,170,.55) inset,0 -3px 8px rgba(90,20,12,.4) inset,0 4px 12px rgba(120,40,25,.35);
+  transition:transform .16s,filter .16s,box-shadow .16s;
+}
+#bottombar .ai-entry-btn:hover{transform:translateY(-1px);filter:brightness(1.07)}
+#bottombar .ai-entry-btn .ai-entry-ic{font-size:14px;filter:drop-shadow(0 0 6px rgba(255,190,90,.8))}
+#bottombar .ai-entry-btn.on{
+  color:#fff6e2;border-color:#5a160f;
+  background:linear-gradient(180deg,#f0be5c,#d8554a 52%,#b03a31);
+  box-shadow:0 1px 0 rgba(255,230,190,.7) inset,0 -3px 8px rgba(90,20,12,.45) inset,
+    0 0 0 2px rgba(196,69,58,.28),0 5px 14px rgba(120,40,25,.42);
+}
+@media (max-width:620px){
+  #bottombar .ai-entry-btn{padding:5px 10px;font-size:11px;letter-spacing:.8px;gap:5px}
+  #bottombar .ai-entry-btn .ai-entry-ic{font-size:12.5px}
+  #bottombar .bb-entry{gap:5px}
+}
+/* 预留列的顶部标签 */
+#aihelper .ai-tag{
+  position:absolute;left:50%;top:0;transform:translateX(-50%);z-index:20;
+  padding:2px 12px;border-radius:0 0 9px 9px;font-size:9.5px;letter-spacing:1.5px;color:#f6efdd;
+  background:linear-gradient(180deg,#8c2a20,#6d1f17);border:1px solid #6d1f17;border-top:none;
+  box-shadow:0 3px 8px rgba(80,30,20,.3);white-space:nowrap;
+}
+
+/* ---------- 底层：《随农记》线装书 ---------- */
+#aihelper .ai-book{
+  position:absolute;inset:0;border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;
+  border:1px solid #c9b48c;
+  background:
+    radial-gradient(600px 300px at 50% 0%,rgba(255,253,247,.95),rgba(255,253,247,0) 60%),
+    repeating-linear-gradient(90deg,rgba(150,125,85,.045) 0 1px,transparent 1px 6px),
+    linear-gradient(180deg,#f7efdb 0%,#efe3c6 55%,#e6d7b5 100%);
+  box-shadow:0 10px 26px rgba(60,40,15,.28),0 2px 6px rgba(60,40,15,.18);
+}
+#aihelper .ai-book::before{content:'';position:absolute;left:0;top:0;bottom:0;width:14px;z-index:2;
+  background:linear-gradient(90deg,#6b4420,#8a5a2e 40%,#5d3b1c);
+  box-shadow:1px 0 3px rgba(60,40,15,.4) inset,-1px 0 0 rgba(255,225,180,.25) inset}
+#aihelper .ai-stitch{position:absolute;left:3px;top:24px;bottom:24px;width:8px;z-index:3;
+  display:flex;flex-direction:column;justify-content:space-between}
+#aihelper .ai-stitch i{display:block;width:8px;height:2px;background:var(--gold-hi);border-radius:2px;
+  box-shadow:0 0 4px rgba(229,196,121,.8)}
+#aihelper .ai-book-inner{position:relative;z-index:4;flex:1 1 auto;min-height:0;display:flex;flex-direction:column;
+  padding:0 12px 0 22px}
+#aihelper .ai-book-head{flex:0 0 auto;display:flex;align-items:center;gap:9px;padding:12px 2px 9px;
+  border-bottom:1px solid rgba(150,125,85,.35)}
+#aihelper .ai-book-seal{width:25px;height:25px;flex:0 0 25px;border-radius:7px;display:grid;place-items:center;
+  font-family:"STKaiti","KaiTi",serif;font-size:12px;color:#fff3e4;
+  background:linear-gradient(145deg,#c9503f,#8c2a20);border:1px solid #7a2019;
+  box-shadow:0 1px 0 rgba(255,190,170,.5) inset,0 2px 5px rgba(80,30,20,.3)}
+#aihelper .ai-book-title{display:flex;align-items:baseline;gap:7px}
+#aihelper .ai-book-title b{font-family:"STKaiti","KaiTi","楷体",serif;font-size:18px;letter-spacing:4px;color:#4a3418;
+  text-shadow:0 1px 0 rgba(255,255,255,.7)}
+#aihelper .ai-book-title em{font-style:normal;font-size:9.5px;color:var(--ink-3);letter-spacing:.5px}
+#aihelper .ai-call{margin-left:auto;padding:6px 10px;border-radius:999px;cursor:pointer;font-family:inherit;
+  font-size:10.5px;letter-spacing:.5px;color:#5a2018;white-space:nowrap;
+  background:linear-gradient(180deg,#e0a63c,#c4453a 60%,#a3312a);border:1px solid #7a2019;
+  box-shadow:0 1px 0 rgba(255,220,170,.55) inset,0 3px 8px rgba(120,40,25,.35)}
+#aihelper .ai-call:hover{filter:brightness(1.06)}
+#aihelper .ai-cats{flex:0 0 auto;display:flex;gap:5px;overflow-x:auto;padding:8px 2px 7px;
+  border-bottom:1px dashed rgba(150,125,85,.45);scrollbar-width:none}
+#aihelper .ai-cats::-webkit-scrollbar{display:none}
+#aihelper .ai-cat{flex:0 0 auto;padding:4px 9px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:10.5px;
+  letter-spacing:.3px;color:var(--ink-2);white-space:nowrap;background:rgba(255,253,247,.75);
+  border:1px solid rgba(150,125,85,.4);transition:.15s}
+#aihelper .ai-cat:hover{color:var(--gold-lo);border-color:var(--gold)}
+#aihelper .ai-cat.on{background:linear-gradient(180deg,#8c2a20,#6d1f17);color:#fbeede;border-color:#6d1f17;
+  box-shadow:0 2px 6px rgba(100,30,20,.3)}
+#aihelper .ai-page{flex:1 1 auto;min-height:0;overflow-y:auto;padding:13px 4px 8px;
+  scrollbar-width:thin;scrollbar-color:rgba(150,125,85,.5) transparent;animation:aiPageIn .34s ease both}
+#aihelper .ai-page::-webkit-scrollbar{width:7px}
+#aihelper .ai-page::-webkit-scrollbar-thumb{background:rgba(150,125,85,.45);border-radius:8px}
+@keyframes aiPageIn{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:none}}
+#aihelper .pg-no{font-size:9.5px;letter-spacing:2px;color:var(--gold-lo);margin-bottom:6px}
+#aihelper .pg-h{font-family:"STKaiti","KaiTi","楷体",serif;font-size:16px;letter-spacing:1.5px;color:#432f14;line-height:1.5}
+#aihelper .pg-sub{font-size:10.5px;color:var(--ink-3);letter-spacing:.5px;margin:3px 0 11px}
+#aihelper .pg-rule{height:2px;margin:0 0 12px;border-radius:2px;
+  background:linear-gradient(90deg,var(--cinnabar),var(--gold-hi) 40%,transparent)}
+#aihelper .pg-page p{font-size:12px;line-height:1.95;color:#3f3524;text-indent:2em;margin-bottom:9px;text-align:justify}
+#aihelper .pg-page h5{font-family:"STKaiti","KaiTi",serif;font-size:13px;color:var(--gold-lo);letter-spacing:1.2px;
+  margin:13px 0 6px;padding-left:8px;border-left:3px solid var(--cinnabar)}
+#aihelper .pg-page h5+p{text-indent:0}
+#aihelper .pg-note{margin:11px 0 4px;padding:9px 11px;border-radius:9px;font-size:11px;line-height:1.75;color:#5a3a2a;
+  background:linear-gradient(180deg,rgba(196,69,58,.09),rgba(196,69,58,.05));border:1px solid rgba(196,69,58,.28)}
+#aihelper .pg-note b{color:var(--cinnabar-lo)}
+#aihelper .ai-book-foot{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:7px 2px 10px;
+  border-top:1px solid rgba(150,125,85,.35)}
+#aihelper .ai-nav{padding:6px 12px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:11px;color:var(--ink-2);
+  background:rgba(255,253,247,.85);border:1px solid rgba(150,125,85,.45);transition:.15s}
+#aihelper .ai-nav:hover{color:var(--gold-lo);border-color:var(--gold)}
+#aihelper .ai-nav:disabled{opacity:.4;cursor:default}
+#aihelper .ai-idx{margin-left:auto;font-size:10px;color:var(--ink-3);letter-spacing:1px}
+
+/* ---------- 上层：小禾 · AI 新手教程（卷轴） ---------- */
+#aihelper .aiwin{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;
+  transform-origin:50% 0;transition:transform .5s cubic-bezier(.55,.02,.3,1),opacity .4s}
+#aihelper .aiwin.rolled{transform:scaleY(.05);opacity:0;pointer-events:none}
+#aihelper .aiwin.rolled .ai-paper{opacity:0}
+#aihelper .ai-paper{transition:opacity .16s}
+#aihelper .ai-rod{position:relative;flex:0 0 17px;border-radius:999px;z-index:3;
+  background:
+    linear-gradient(180deg,rgba(255,235,200,.5) 0%,rgba(255,235,200,0) 45%),
+    repeating-linear-gradient(90deg,rgba(90,56,26,.28) 0 2px,rgba(90,56,26,0) 2px 9px),
+    linear-gradient(180deg,#a5713d,#8a5a2e 48%,#6b4420);
+  border:1px solid #5d3b1c;
+  box-shadow:0 1px 0 rgba(255,225,180,.55) inset,0 -2px 5px rgba(50,28,10,.5) inset,0 4px 10px rgba(50,30,12,.35)}
+#aihelper .ai-rod .cap{position:absolute;top:50%;width:13px;height:22px;transform:translateY(-50%);border-radius:5px;
+  background:linear-gradient(180deg,#e5c479,#b8892e 45%,#8a6416);border:1px solid #6f5113;
+  box-shadow:0 1px 0 rgba(255,240,200,.7) inset,0 2px 5px rgba(50,30,10,.4)}
+#aihelper .ai-rod .cap.l{left:-7px}
+#aihelper .ai-rod .cap.r{right:-7px}
+#aihelper .ai-paper{position:relative;flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:hidden;
+  border-left:1px solid var(--line);border-right:1px solid var(--line);
+  background:
+    radial-gradient(700px 400px at 50% 0%,rgba(255,253,247,.9),rgba(255,253,247,0) 60%),
+    repeating-linear-gradient(90deg,rgba(160,140,100,.035) 0 1px,transparent 1px 5px),
+    linear-gradient(180deg,var(--panel-hi),var(--panel) 45%,var(--paper-2));
+  box-shadow:0 10px 30px rgba(50,30,12,.34),0 2px 6px rgba(50,30,12,.22)}
+#aihelper .ai-paper::before,#aihelper .ai-paper::after{content:'';position:absolute;top:12px;bottom:12px;width:2px;opacity:.6;
+  background:linear-gradient(180deg,transparent,rgba(196,69,58,.28) 12%,rgba(196,69,58,.28) 88%,transparent)}
+#aihelper .ai-paper::before{left:8px}
+#aihelper .ai-paper::after{right:8px}
+#aihelper .ai-head{position:relative;z-index:2;flex:0 0 auto;display:flex;align-items:center;gap:9px;padding:12px 15px 10px;
+  border-bottom:1px solid var(--line);background:linear-gradient(180deg,rgba(255,253,247,.95),rgba(240,233,216,.7))}
+#aihelper .ai-seal{position:relative;width:38px;height:38px;flex:0 0 38px;border-radius:10px;display:grid;place-items:center;
+  font-family:"STKaiti","KaiTi",serif;font-size:19px;color:#fff3e4;
+  background:linear-gradient(145deg,#c9503f,#a3312a 55%,#8c2a20);border:1px solid #7a2019;
+  box-shadow:0 1px 0 rgba(255,190,170,.5) inset,0 -2px 5px rgba(90,20,12,.4) inset,0 3px 8px rgba(80,30,20,.3)}
+#aihelper .ai-seal::after{content:'';position:absolute;inset:4px;border-radius:6px;border:1px solid rgba(255,235,220,.4)}
+#aihelper .ai-who{display:flex;flex-direction:column;line-height:1.3;margin-right:auto}
+#aihelper .ai-who b{font-size:14px;letter-spacing:1.5px;font-family:"STKaiti","KaiTi",serif;color:#3a2f1e}
+#aihelper .ai-who i{font-style:normal;font-size:9.5px;color:var(--ink-3);letter-spacing:.8px}
+#aihelper .ai-ibtn{width:26px;height:26px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;line-height:1;
+  color:var(--ink-2);background:linear-gradient(180deg,#fffdf7,#ece2ca);border:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 1px 3px rgba(80,60,30,.14);transition:.15s}
+#aihelper .ai-ibtn:hover{border-color:var(--gold);color:var(--gold-lo)}
+/* ---------- 问答手册：分类条 + 问题列表（点问题展开答案） ---------- */
+#aihelper .ai-qlist{position:relative;z-index:2;flex:1 1 auto;min-height:0;overflow-y:auto;padding:11px 13px 8px;
+  scrollbar-width:thin;scrollbar-color:var(--line) transparent;
+  background:linear-gradient(180deg,rgba(255,253,247,.42),rgba(240,233,216,.12))}
+#aihelper .ai-qlist::-webkit-scrollbar{width:8px}
+#aihelper .ai-qlist::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
+#aihelper .ai-qwrap{margin-bottom:7px;border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  background:linear-gradient(180deg,#fffdf8,#f6f1e4);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 2px 5px rgba(80,60,30,.08)}
+#aihelper .ai-q{display:flex;align-items:flex-start;gap:9px;width:100%;text-align:left;cursor:pointer;
+  padding:9px 11px;font-family:inherit;font-size:12px;line-height:1.6;color:#3f3524;
+  background:none;border:none;transition:.14s}
+#aihelper .ai-q:hover{background:rgba(184,137,46,.10)}
+#aihelper .ai-q .qn{flex:0 0 18px;height:18px;margin-top:1px;border-radius:50%;display:grid;place-items:center;
+  font-size:10px;font-weight:700;color:#fff3e4;background:linear-gradient(145deg,#b8892e,#8a6416);border:1px solid #6f5113}
+#aihelper .ai-q .qt{flex:1 1 auto}
+#aihelper .ai-q .qc{flex:0 0 auto;font-size:12px;color:var(--gold-lo);transition:transform .2s}
+#aihelper .ai-qwrap.open .ai-q{color:var(--cinnabar-lo);font-weight:600}
+#aihelper .ai-qwrap.open .ai-q .qc{transform:rotate(180deg)}
+#aihelper .ai-a{display:none;padding:0 11px 10px 38px}
+#aihelper .ai-qwrap.open .ai-a{display:block;animation:aiFade .2s ease both}
+@keyframes aiFade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+#aihelper .ai-a-in{padding-top:8px;border-top:1px dashed var(--line);
+  font-size:11.5px;line-height:1.8;color:#4a4030;white-space:pre-wrap}
+#aihelper .ai-a-in b{color:var(--cinnabar-lo)}
+#aihelper .ai-foot-note{position:relative;z-index:2;flex:0 0 auto;display:flex;align-items:center;gap:7px;
+  padding:6px 15px 9px;font-size:9.5px;color:var(--ink-3)}
+#aihelper .ai-foot-note .mdl{margin-left:auto;padding:2px 8px;border-radius:999px;border:1px solid var(--line);
+  background:rgba(255,253,247,.7);color:var(--bronze);white-space:nowrap}
+@media (prefers-reduced-motion:reduce){
+  #aihelper *{animation:none !important;transition:none !important}
+}
+
+/* ============================================================
+   手机 / 平板「横屏」（矮视口）：把电脑端那套横版压进手机横屏
+   ------------------------------------------------------------
+   只在「横屏 + 高 ≤620px + 不是宽屏桌面」时生效。
+   竖屏（414×896）走的是上面的 @media (max-width:620px) 那一档，语义不变。
+   横屏的痛点是**高**不够：顶栏 / 底栏 / 部落条必须压扁，图板才长得出来。
+   ⚠ 不动 WIDE_MIN(1500)：教程入口断点、#aihelper 常驻列都挂在 1500 上。
+   ============================================================ */
+@media (orientation:landscape) and (max-width:1499.98px) and (max-height:620px){
+
+  html,body{height:100vh;height:100dvh;overflow:hidden}
+  body{display:flex;flex-direction:column}
+
+  /* ---------- 顶栏：压成单行 ----------
+     顶栏是 display:flex 且默认不换行，flex 项会被「收缩」——
+     .brand 一被压，<h1> 就在里面竖排成「菜\n农\n部\n落」。
+     这里给 brand / actions 都 flex:0 0 auto，只让中间 round-info 收缩，
+     并把按钮文字（.tb-t）收掉、顺序条只留当前行动者。 */
+  header{flex:0 0 auto;height:auto;min-height:0;flex-wrap:nowrap;gap:8px;padding:3px 8px}
+  header::after{height:1px}
+  .brand{flex:0 0 auto;gap:6px}
+  .logo{width:26px;height:26px;font-size:13px;border-radius:7px}
+  .brand h1{font-size:13px;letter-spacing:1px;white-space:nowrap}
+  .brand small{display:none}
+  .round-info{flex:1 1 auto;min-width:0;gap:8px;font-size:10.5px;
+              white-space:nowrap;overflow:hidden;order:0;width:auto}
+  .round-info b{font-size:11.5px}
+  .round-info .sep{display:none}
+  .top-actions{flex:0 0 auto;margin-left:auto;gap:5px;flex-wrap:nowrap;order:0;width:auto}
+  .seg{padding:1px;border-radius:8px}
+  .seg button{padding:3px 7px;font-size:10px;letter-spacing:0}
+  .tb{padding:4px 7px;font-size:11px;gap:3px}
+  .tb-t{display:none}                 /* 按钮只留图标 */
+
+  /* ---------- 主区：左图板占满高 | 右操作列 ---------- */
+  #app{
+    flex:1 1 auto;min-height:0;
+    display:grid;
+    /* 右列按视口比例走：900 宽 ~300px；窄一点的横屏（667×375）不让右列固定占 300，
+       否则左边只剩一条缝给图板 */
+    grid-template-columns:minmax(0,1fr) clamp(226px,36%,322px);
+    grid-template-rows:auto minmax(0,1fr);
+    gap:6px;padding:6px 6px 0;
+  }
+  /* ≤620px 的竖屏挡会把 #scrollzone 变成真盒子（display:flex），
+     横屏下必须还原成 display:contents，否则 tribebar / sidepanel 不再是 #app 的网格项 */
+  #scrollzone{display:contents}
+  #stage{
+    grid-column:1;grid-row:1 / span 2;
+    border-radius:10px;padding:6px;min-width:0;min-height:0;
+    border:1px solid var(--line);   /* 竖屏挡把上/左/右边框收掉了，这里补回 */
+  }
+  /* 四部落条挪进右列顶部（横屏没高度在图板下面再摆一排） */
+  #tribebar{
+    grid-column:2;grid-row:1;margin-top:0;padding:5px 6px;
+    border:1px solid var(--line);border-radius:10px;
+  }
+  #players{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+  /* 日志 / 掷骰进右列底部 */
+  #sidepanel{grid-column:2;grid-row:2;border-radius:10px;min-height:0;max-height:none}
+  .splitter-v,.splitter-h{display:none}
+
+  /* ---------- 图板左上竖列：改成窄列（图板由 layoutBoard 让位） ---------- */
+  .legend-col{left:6px;top:6px;bottom:6px;width:clamp(118px,21%,168px);max-height:none;
+              max-width:none;gap:5px}
+  .legend{display:none}               /* 横屏竖列里没地方放图例，部落信息在右列 */
+  #farmpanel h4{font-size:10px;margin-bottom:3px}
+  /* ≤620px 竖屏挡会把 #myfarms 变成横向滑条，横屏窄列里要还原成竖排 */
+  #myfarms{max-height:none;flex-direction:column;overflow-x:hidden;overflow-y:auto;gap:6px}
+  #myfarms .farm{display:flex;flex-wrap:wrap;width:100%;min-width:0;margin:0;align-items:center;gap:6px}
+  #myfarms .farm img{width:34px;height:27px}
+  #myfarms .farm .fmain{flex:1 1 0;min-width:0}
+  #myfarms .farm .fbtns{flex:0 0 100%;width:100%;flex-direction:row;flex-wrap:wrap;
+                        gap:4px;margin-top:2px;align-items:center}
+  .legend-col .mini{white-space:nowrap;flex:0 0 auto;padding:3px 7px;font-size:10px;line-height:1.4}
+  #codex-entry{padding:5px 7px;gap:6px}
+  #codex-entry .ce-sub{display:none}  /* 窄列里副标题省掉 */
+
+  /* ---------- 右列：部落卡 / 日志 / 掷骰 都收紧凑 ----------
+     部落卡原来是「图 38px + 名字/金额/纹样/进度条」的竖排，一张 ~80px，
+     2×2 就把右列吃光、掷骰按钮被挤出可视区。这里压到一张 ~52px：
+     去掉进度条、缩小图与字号。 */
+  .pcard{padding:4px 6px;gap:6px}
+  .pcard .pimg{width:26px;height:26px;border-radius:6px}
+  .pcard .pname{font-size:11px;gap:4px;flex-wrap:nowrap;overflow:hidden}
+  .pcard .ptag{font-size:8.5px;padding:1px 4px}
+  .pcard .pmoney{font-size:10px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pcard .pmoney b{font-size:12px}
+  /* 纹样文字（部落特长）在窄卡里换行会把卡撑高一倍，压成单行省略 */
+  .pcard .pmotif{font-size:8.5px;margin-top:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pcard .pbar{display:none}
+  .pcard .lands{font-size:9px;padding:0 4px;top:4px;right:4px}
+  .log .li{font-size:10.5px;line-height:1.5}
+  .panel-block{padding:7px 9px}
+  /* ≤620px 竖屏挡把日志写死 height:132px、把 .grow 钉成 flex:0 0 auto，
+     横屏下要还原成「日志占满剩余高度」 */
+  #sidepanel .panel-block.grow{flex:1 1 auto;min-height:0}
+  #log{flex:1 1 auto;min-height:48px;height:auto;overflow-y:auto}
+  /* 骰子盒留白 46px 在矮屏里会把「掷骰子」按钮顶出可视区（实测 600×360） */
+  #dice{min-height:0;margin-bottom:4px}
+  .panel-block--foot{flex:0 0 auto}
+  .roll{font-size:12px;padding:8px 12px}
+
+  /* ---------- 底栏（手牌）：压扁 ---------- */
+  #bottombar{flex:0 0 auto;max-height:min(26vh,110px);padding:5px 8px}
+  .bb-item h4{font-size:10.5px;margin-bottom:3px}
+  .hscroll .farm{min-width:150px;margin-right:6px}
+  #bottombar .ai-entry-btn{padding:4px 10px;font-size:11px;gap:5px}
+}
+
+/* =========================================================
+   简约版（放大游玩）—— body.simple
+   ---------------------------------------------------------
+   目标：把棋盘放到最大，适合投屏 / 一群人围着看。
+   做法：**只改布局，不碰任何游戏逻辑** —— JS 侧仅切一个 body class
+   并重调 layoutBoard()，所有渲染函数与事件绑定原样不动。
+
+   收起什么：底部手牌栏、右侧竖列（三卡入口/土地/图例/农耕志）、分隔条。
+   保留什么：顶栏（可切回）、棋盘（放大铺满）、四部落条、右侧日志 + 骰子 + 掷骰。
+
+   ⚠ 窄屏（≤620px）不启用：手机本来就小，再收面板就没法玩了。
+   真机玩家走 index.html，若误触开关由下面的媒体查询强制关掉形态。
+   ========================================================= */
+
+/* 顶栏开关按钮的高亮态 */
+#btn-simple.on{
+  background:linear-gradient(180deg,#fffaee,#f2e6cc);
+  color:#5a4416;font-weight:600;
+  border-color:var(--gold);
+  box-shadow:0 1px 0 rgba(255,255,255,.9) inset, 0 1px 3px rgba(80,60,30,.18);
+}
+
+body.simple{ --bottom-h:0px; }
+
+/* 1) 底栏彻底收起（不占高度） */
+body.simple #bottombar{ display:none; }
+/* 2) 分隔条隐藏 */
+body.simple .splitter{ display:none; }
+/* 3) 左侧竖列（三卡入口 / 我的土地 / 图例 / 农耕志）收起 */
+body.simple .legend-col{ display:none; }
+
+/* 4) #app 变成「棋盘 + 右侧日志」两列，右侧收窄给棋盘让位 */
+body.simple #app{
+  grid-template-columns:minmax(0,1fr) minmax(0,var(--side-w-simple,300px));
+  grid-template-rows:minmax(0,1fr) auto;
+  padding:10px 10px 0;
+}
+/* #scrollzone 是 display:contents，竖分隔条隐藏后第2 列没人占，
+   直接让 sidepanel 落到第 2 列、tribebar 落到第 2 行第 1 列 */
+body.simple #sidepanel{ grid-column:2;grid-row:1 / span 2; }
+body.simple #tribebar{ grid-column:1;grid-row:2; }
+/* 5) stage：棋盘铺满可用空间 */
+body.simple #stage{
+  padding:8px;
+  grid-column:1;grid-row:1;
+}
+/* 6) 右侧面板只留日志 + 骰子，把「操作框」改成浮在棋盘上的浮层 —— */
+/*    简约版里它必须能随时看到（买地/种植的按钮在这），不能藏。 */
+body.simple #actionbox{
+  position:fixed;
+  right:calc(var(--side-w-simple,300px) + 22px);
+  bottom:18px;
+  z-index:30;
+  width:min(340px,42vw);
+  max-height:56vh;
+  overflow-y:auto;
+  border-radius:var(--radius);
+  box-shadow:0 10px 30px rgba(80,60,30,.28), 0 0 0 1px rgba(184,137,46,.35);
+}
+/* 7) 顶栏略矮，把高度让给棋盘 */
+body.simple header{ flex:0 0 52px; }
+
+/* 简约版下把「我的土地」提示挪进部落条下方的小字，避免完全看不到自己有多少地 */
+/* （土地面板已收起，但每回合仍要看一眼，所以保留 #farmpanel 的替代入口） */
+body.simple #tribebar{ padding:7px 10px 8px; }
+
+/* 8) 窄屏强制退出简约形态：手机不适用，直接把收起的东西放回去 */
+@media (max-width:900px){
+  body.simple #bottombar{ display:flex; }
+  body.simple .legend-col{ display:flex; }
+  body.simple #actionbox{
+    position:static;width:auto;max-height:none;overflow:visible;
+    box-shadow:var(--lift);
+  }
+}

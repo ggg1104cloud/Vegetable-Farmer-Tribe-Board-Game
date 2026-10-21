@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>迭代验收 · 人类游戏逻辑</title>
+<style>
+body{font-family:monospace;padding:16px;background:#111;color:#ddd;font-size:13px}
+pre{white-space:pre-wrap;line-height:1.6}
+iframe{width:1500px;height:900px;border:0;position:absolute;left:-9999px}
+</style>
+</head>
+<body>
+<pre id="out">running…</pre>
+<iframe id="f" src="/index.html?intro=0"></iframe>
+<script type="module">
+/* =========================================================
+   迭代验收（iter）—— 逐轮「人类游戏逻辑实测 → 找缺陷 → 修 → 复验」
+   每一轮一个 R 段。只写**现有 human-logic / ui 覆盖不到**的场景。
+   ========================================================= */
+const lines=[];const out=document.getElementById('out');
+const say=s=>{lines.push(s);out.textContent=lines.join('\n');};
+let fails=0, passes=0;
+const check=(n,c,x='')=>{c?passes++:fails++;say(`${c?'PASS':'FAIL'}  ${n}${x?'  → '+x:''}`);};
+const tick=(ms=120)=>new Promise(r=>setTimeout(r,ms));
+const waitFor=async(fn,ms=8000,step=60)=>{const t0=Date.now();while(Date.now()-t0<ms){try{if(fn())return true;}catch(e){}await tick(step);}return false;};
+
+await new Promise(r=>{
+  let n=0;
+  const t=setInterval(()=>{
+    const w=f.contentWindow;
+    if(w && w.__game && w.__game.state){clearInterval(t);r();}
+    else if(++n>120){clearInterval(t);r();}
+  },150);
+});
+const w=f.contentWindow, d=w.document;
+if(!w.__game){ say('FAIL 页面未初始化 __game'); }
+else {
+  const eng = await import('/src/engine.js');
+  const data = await import('/src/data.js');
+  const st = () => w.__game.state;
+  const dbg = w.__game.debug;
+  const boxHidden = () => d.getElementById('actionbox').hidden;
+
+  const fresh = (money=200) => {
+    w.__game.newGame(); w.__game.setMode('local'); w.__game.setSeat(0);
+    dbg.setFastMode(true);
+    const G = st();
+    G.players.forEach(p => p.money = money);
+    return G;
+  };
+
+  say('=== R1. 掷骰与移动（追风 / 监狱 / 起点奖励）· 人类逻辑实测 ===');
+  say('— R1-a 追风决策后「追风按钮/操作框」应当收掉（不能杵在屏幕上跟着棋子走）—');
+  {
+    fresh(200);
+    dbg.setActor(2);                      // 座位 2 = 丝绸部落（追风千里）
+    const c = st().players[2];
+    c.extraRollCd = 0; c.extraRollLeft = 0;
+    c.pos = 0;
+    /* 固定随机：主骰 [1,1]=2 步；追风骰 1 点。总 3 步 */
+    const rand0 = w.Math.random;
+    w.Math.random = () => 0;
+
+    d.getElementById('btn-roll').click();
+    const shown = await waitFor(() => /追风/.test(d.getElementById('actions').textContent), 4000);
+    check('R1a-1 掷骰后弹出「追风」决策按钮', shown,
+      shown ? '出现追风按钮' : '未出现（可能没触发追风）');
+
+    if (shown) {
+      const btn = [...d.querySelectorAll('#actions button')]
+        .find(b => /追风：追加掷骰/.test(b.textContent));
+      btn.click();
+      await tick(120);                    // 抢在走棋动画（250ms/格）还没结束前看
+      check('R1a-2 点「追风」后操作框立即收起（不残留）',
+        boxHidden() === true,
+        boxHidden() ? '已收起' : '✖ 操作框仍显示：' + [...d.querySelectorAll('#actions button')].map(b=>b.textContent.trim().split('\n')[0]).join(' / '));
+    }
+
+    await waitFor(() => !w.__game.busy && boxHidden() === false, 8000);
+    check('R1a-3 追风点数并入「一次走完」：pos = 0 + 2 + 1 = 3',
+      c.pos === 3, `pos=${c.pos}`);
+    w.Math.random = rand0;
+  }
+
+  say('\n— R1-b 专门落在监狱 → 面板出「狱中」、下一回合自动跳过、再下一回合恢复 —');
+  {
+    fresh(200);
+    const JAIL = data.TRACK.findIndex(x => x.kind === 'jianyu');
+    dbg.setActor(0);
+    const me = st().players[0];
+    me.pos = (JAIL - 2 + 32) % 32;        // 距监狱 2 格
+    const rand0 = w.Math.random;
+    w.Math.random = () => 0;              // [1,1] = 2 步 → 正好落监狱
+
+    d.getElementById('btn-roll').click();
+    const landed = await waitFor(() => me.pos === JAIL, 6000);
+    check('R1b-1 点击掷骰后棋子走到监狱格', landed, `pos=${me.pos}（监狱=${JAIL}）`);
+    dbg.render();
+    const card = [...d.querySelectorAll('#players .pcard')][0];
+    check('R1b-2 落监狱后面板显示「狱中」标签',
+      !!card.querySelector('.ptag.jail'),
+      card.querySelector('.pname').textContent.replace(/\s+/g,' '));
+
+    // 收掉落格操作框，轮到下一人；把回合交回座位 0，模拟「下一回合」
+    await waitFor(() => boxHidden() === false, 6000);
+    d.getElementById('modal-close') && d.getElementById('modal-close').click();
+    // 结束本回合（点「结束回合」按钮），换手
+    const endBtn = [...d.querySelectorAll('#actions button')].find(b=>/结束回合/.test(b.textContent));
+    if (endBtn) { endBtn.click(); }
+    await waitFor(() => st().order[st().turn] !== 0, 6000);
+    const skip = (me.skipTurns || 0) === 1;
+    check('R1b-3 进监狱后标记「暂停 1 回合」', skip, `skipTurns=${me.skipTurns}`);
+
+    // 把回合强行交回座位 0，点骰子 → 应自动跳过
+    dbg.setActor(0);
+    const m0 = me.money, p0 = me.pos;
+    d.getElementById('btn-roll').click();
+    await tick(900);
+    check('R1b-4 服刑回合：点骰子不移动、不掷骰（自动跳过）',
+      me.pos === p0 && (me.skipTurns || 0) === 0,
+      `pos=${me.pos} skipTurns=${me.skipTurns}`);
+    const jailMsgs = st().log.filter(l => /服刑|监狱/.test(l.msg)).map(l => l.msg);
+    check('R1b-5 服刑提示不自相矛盾（无「暂停 0 回合」）',
+      !jailMsgs.some(m=>/暂停\s*0\s*回合/.test(m)), jailMsgs.slice(-2).join(' ｜ '));
+    w.Math.random = rand0;
+  }
+
+  say('\n— R1-c 起点奖励：落在起点 / 经过起点都发，且一回合内只发一次 —');
+  {
+    const bonus = data.RULES.startBonus;
+    /* ⚠️ eng.stepMove 移动的是 curPlayer(g)=players[order[turn]]，
+       不是写死的 players[0]。必须先把回合交给目标座位。 */
+    const cases = [
+      ['经过起点（不落上）', 31, 2, bonus],      // 31→0→1，跨过起点
+      ['正好落在起点',        31, 1, bonus],      // 31→0
+    ];
+    for (const [name, pos, steps, exp] of cases) {
+      fresh(100);
+      dbg.setActor(0);
+      const me = st().players[st().order[st().turn]];   // 长安（无起点加成）
+      me.pos = pos; const m0 = me.money;
+      eng.stepMove(st(), steps);
+      check(`R1c ${name} → +${exp}`,
+        me.money - m0 === exp, `+${me.money - m0}`);
+    }
+    // D 部落（燕都）额外 +15
+    fresh(100);
+    dbg.setActor(3);
+    const dd = st().players[st().order[st().turn]];     // 燕都
+    dd.pos = 31; const m1 = dd.money;
+    eng.stepMove(st(), 1);
+    check('R1c 燕都（丝路商队）经过起点 = 50 + 15 = 65',
+      dd.money - m1 === data.RULES.startBonus + 15, `+${dd.money - m1}`);
+  }
+
+  say('\n— R1-d 追风骰点数范围 1~3、且用掉一次就没了 —');
+  {
+    fresh(200);
+    dbg.setActor(2);
+    const c = st().players[2];
+    const seen = new Set();
+    for (let i=0;i<300;i++){ c.extraRollLeft = 1; const ex = eng.stepExtraRoll(st()); if(ex.ok) seen.add(ex.dice[0]); }
+    check('R1d 追风骰只出现 1~3',
+      [...seen].every(v=>v>=1&&v<=3) && seen.size===3,
+      '出现点数=' + [...seen].sort().join(','));
+  }
+
+  say('\n=== R2. 买地与过路费（50% 赔付 / 只在落点收 / 转给地主）· 人类逻辑实测 ===');
+  const openIdx = () => data.TRACK.findIndex((c,i)=>c.kind==='land');
+  say('— R2-a 过路费只在「最终落点」收：路过他人土地不收费 —');
+  {
+    fresh(200);
+    /* 挑一块靠中间的地，避免「路过」时顺带越过起点，把起点奖励混进来 */
+    const idx = data.TRACK.findIndex((c,i)=>c.kind==='land' && i>4);
+    dbg.giveLand(0, idx);                    // 座位 0 买下这块地
+    dbg.setActor(1);
+    const mover = st().players[1];
+    mover.pos = (idx - 2 + 32) % 32;         // 目标地前 2 格
+    const m0 = mover.money;
+    eng.stepMove(st(), 3);                   // 跨过该地，落在它后面 1 格
+    check('R2a 路过他人土地 → 不收费（只有落在才付）',
+      mover.pos !== idx && mover.money === m0,
+      `pos=${mover.pos}（目标地=${idx}）｜money ${m0}→${mover.money}`);
+  }
+  {
+    fresh(200);
+    const idx = openIdx();
+    dbg.giveLand(0, idx);
+    dbg.setActor(1);
+    const mover = st().players[1];
+    const owner = st().players[0];
+    const land = data.landById(data.TRACK[idx].soilId);
+    const fee = Math.round(land.price * data.RULES.passRate);
+    const om = owner.money, mm = mover.money;
+    mover.pos = (idx - 1 + 32) % 32;
+    eng.stepMove(st(), 1);                   // 正好落在地主的地上
+    check('R2b 落在他人土地 → 付 20% 且转给地主',
+      mover.money === mm - fee && owner.money === om + fee,
+      `过路费 ${fee}｜付方 ${mm}→${mover.money}｜地主 ${om}→${owner.money}`);
+  }
+  say('— R2-c 落在他人地上时，操作框里的「查看土地信息」按钮必须真的能点（不能既让它点又禁用）—');
+  {
+    fresh(500);
+    const idx = openIdx();
+    dbg.giveLand(0, idx);                    // 别人的地
+    dbg.setActor(1);
+    const mover = st().players[1];
+    mover.pos = idx;
+    dbg.showActions('测试回合', dbg.postMoveActions());
+    const btn = [...d.querySelectorAll('#actions button.act')]
+      .find(b => /的.+，本回合已付过路费/.test(b.textContent) || /查看该土地信息/.test(b.textContent));
+    check('R2c-1 出现「他人土地」信息按钮', !!btn, btn ? btn.textContent.replace(/\s+/g,' ').slice(0,40) : '未出现');
+    if (btn) {
+      check('R2c-2 该按钮不是禁用的（说明写「点击查看」就得能点）',
+        btn.disabled === false, btn.disabled ? '✖ disabled=true —— 文案骗人' : '可点击');
+      if (!btn.disabled) {
+        btn.click();
+        await tick(150);
+        const body = (d.getElementById('modal-body') || {}).textContent || '';
+        check('R2c-3 点击后真的弹出该土地详情',
+          body.includes(data.landById(data.TRACK[idx].soilId).name), body.slice(0,30));
+        const c = d.getElementById('modal-close'); if (c) c.click();
+      }
+    }
+  }
+
+say('\n=== R3. 种植与收获（种子硬门槛 / 按片记账 / 种不花钱）· 人类逻辑实测 ===');
+  /* 挑一块高肥力、且不在长安（A）加成名单里的地，避免特长干扰 */
+  const hiLand = data.LANDS.find(l => l.fertility === '高' && !['shandong','huangmiantu'].includes(l.id));
+  const hiLandIdx = data.TRACK.findIndex(c => c.kind === 'land' && c.soilId === hiLand.id);
+  const CROP = 'yumi';
+  const setupLand = (seeds) => {
+    fresh(300);
+    dbg.setActor(0);
+    dbg.giveLand(0, hiLandIdx);
+    const me = st().players[0];
+    me.pos = hiLandIdx;
+    me.seeds = { ...seeds };
+    return me;
+  };
+  say('— R3-a 手里没有种子 → 种不下（不是「有钱就能种」）—');
+  {
+    const me = setupLand({});                 // 一颗种子都没有
+    const m0 = me.money;
+    const r = eng.plant(st(), me, hiLandIdx, CROP, 1);
+    check('R3a 无种子 → 种植被拒、不扣钱、地不变',
+      r.ok === false && me.money === m0 && me.lands[hiLandIdx].crops.length === 0,
+      `ok=${r.ok}｜msg=${r.msg}｜money=${me.money}｜crops=${me.lands[hiLandIdx].crops.length}`);
+  }
+  say('— R3-b 按片记账：种 n 片 = n 条记录，每条只记单片利润；种植不花钱 —');
+  {
+    const me = setupLand({ [CROP]: 3 });
+    const per = data.plantingProfit(data.cropById(CROP), data.landById(hiLand.id)).yieldPerPlot;
+    const m0 = me.money;
+    const r = eng.plant(st(), me, hiLandIdx, CROP, 2);
+    const rec = me.lands[hiLandIdx];
+    check('R3b-1 种 2 片 → 2 条作物记录、种子 −2',
+      r.ok === true && rec.crops.length === 2 && (me.seeds[CROP] || 0) === 1,
+      `ok=${r.ok}｜crops=${rec.crops.length}｜剩种子=${me.seeds[CROP]}`);
+    check('R3b-2 每条记录只记「单片」利润（不是整地）',
+      rec.crops.every(c => c.profit === per), `per=${per}｜记录=${rec.crops.map(c=>c.profit).join(',')}`);
+    check('R3b-3 种植环节 cost = 0（种子钱在买卡时已付），钱包不变',
+      me.money === m0, `money ${m0}→${me.money}`);
+    const h = eng.harvest(st(), me, hiLandIdx);
+    check('R3b-4 收获总额 = 片数 × 单片利润（本例无特长/改良加成）',
+      h.ok && h.total === per * 2, `total=${h.total}（应 ${per * 2}）`);
+  }
+  say('— R3-c 种子不够本次片数 → 直接拒绝（一片一张种子卡）—');
+  {
+    const me = setupLand({ [CROP]: 1 });
+    const r = eng.plant(st(), me, hiLandIdx, CROP, 3);
+    check('R3c 只有 1 张种子却要种 3 片 → 被拒、地不变、种子不动',
+      r.ok === false && me.lands[hiLandIdx].crops.length === 0 && me.seeds[CROP] === 1,
+      `ok=${r.ok}｜msg=${r.msg}`);
+  }
+  say('— R3-d 站在别的格 → 不能给脚下以外的地种植 —');
+  {
+    const me = setupLand({ [CROP]: 3 });
+    me.pos = (hiLandIdx + 1) % 32;            // 走开
+    const r = eng.plant(st(), me, hiLandIdx, CROP, 1);
+    check('R3d 不在该地上 → 种植被拒（不能隔空种地）',
+      r.ok === false, `ok=${r.ok}｜msg=${r.msg}`);
+  }
+  say('— R3-e 种植弹层：没有种子的作物要标「不可种」，且不会误导成能种 —');
+  {
+    const me = setupLand({});                 // 一颗种子都没有
+    dbg.showActions('t', dbg.postMoveActions());
+    dbg.openPlantModal(hiLandIdx);
+    await tick(150);
+    const figs = [...d.querySelectorAll('#croppick figure')];
+    check('R3e-1 弹层列出全部作物', figs.length === data.CROPS.length, `${figs.length}`);
+    check('R3e-2 无种子的作物全部带 noseed 标记 / 显示「无种子」',
+      figs.length > 0 && figs.every(f => f.classList.contains('noseed') && /无种子/.test(f.textContent)),
+      figs[0] ? figs[0].className : '无');
+    const c = d.getElementById('modal-close'); if (c) c.click();
+  }
+
+  say('\n=== R4. 气象卡（延时发动 / 只用一次 / 灾害负值）· 人类逻辑实测 ===');
+  {
+    const wxIdx = data.TRACK.findIndex(c => c.kind === 'qixiang');
+    const setupWx = (wxIds) => {
+      fresh(300); dbg.setActor(0); dbg.giveLand(0, hiLandIdx);
+      const me = st().players[0];
+      me.pos = hiLandIdx;
+      me.seeds = { [CROP]: 3 };
+      me.weatherCards = wxIds ? [...wxIds] : [];
+      return me;
+    };
+    say('— R4-a 落在气象站 → 抽 1 张进卡槽，不立刻结算 —');
+    {
+      fresh(300); dbg.setActor(0);
+      const me = st().players[0]; me.pos = wxIdx; me.weatherCards = [];
+      const m0 = me.money;
+      eng.stepSettle(st());
+      check('R4a 气象站只发卡、不结算（钱不变、卡槽 +1）',
+        (me.weatherCards || []).length === 1 && me.money === m0,
+        `卡槽=${me.weatherCards.length}｜money ${m0}→${me.money}`);
+    }
+    say('— R4-b/c 不种植就不消耗；一动手就消耗「最早那张」，且只作用第一片 —');
+    {
+      const me0 = setupWx(['w1']);
+      check('R4b 不种植 → 延时气象卡一直留着', me0.weatherCards.length === 1,
+        `卡槽=[${me0.weatherCards.join(',')}]`);
+      const me = setupWx(['w1', 'w3']);
+      eng.plant(st(), me, hiLandIdx, CROP, 2);
+      const cs = me.lands[hiLandIdx].crops;
+      check('R4c-1 种植 → 用掉最早那张（w1），另一张留到下次',
+        me.weatherCards.length === 1 && me.weatherCards[0] === 'w3', `卡槽=[${me.weatherCards.join(',')}]`);
+      check('R4c-2 气象只记在第一片（第二片不带）',
+        cs[0].weather === 'w1' && !cs[1].weather,
+        `片1=${cs[0].weather}｜片2=${cs[1].weather}`);
+    }
+    say('— R4-d 灾害卡是负值：第一片收益被扣下来，收获按扣后的数字结算 —');
+    {
+      const per = data.plantingProfit(data.cropById(CROP), data.landById(hiLand.id)).yieldPerPlot;
+      const me = setupWx(['w3']);                      // 台风过境 −25
+      eng.plant(st(), me, hiLandIdx, CROP, 1);
+      const c0 = me.lands[hiLandIdx].crops[0];
+      check('R4d-1 台风卡（−25）→ 第一片收益 = 单片 −25',
+        c0.profit === per - 25, `${per} + (−25) = ${c0.profit}`);
+      const h = eng.harvest(st(), me, hiLandIdx);
+      check('R4d-2 收获按扣后金额结算', h.total === per - 25, `total=${h.total}`);
+    }
+    say('— R4-e 面板要能一眼看出「我手里有待发气象卡」—');
+    {
+      const me = setupWx(['w1']);
+      dbg.render();
+      const cnt = d.getElementById('weathercount');
+      check('R4e 待发气象卡 → 入口计数 = 1、入口高亮 urgent',
+        cnt && cnt.textContent === '1' && d.getElementById('hub-weather').classList.contains('urgent'),
+        `计数=${cnt && cnt.textContent}｜urgent=${d.getElementById('hub-weather').classList.contains('urgent')}`);
+    }
+  }
+
+  say('\n=== R5. 改良卡（抽到即得面值 / 持有折算 / 封顶 +48% / 弃牌）· 人类逻辑实测 ===');
+  {
+    const njIdx = data.TRACK.findIndex(c => c.kind === 'nongji');
+    const V20 = data.IMPROVES.find(i => i.value === 20);
+    say('— R5-a 落在改良站 → 抽 1 张：手牌 +1，且「立即获得该卡面值」—');
+    {
+      fresh(300); dbg.setActor(0);
+      const me = st().players[0];
+      me.pos = njIdx; me.hand = []; me.money = 100;
+      eng.stepSettle(st());
+      const im = data.improveById(me.hand[0]);
+      check('R5a 抽到改良卡 → 手牌 +1、肥力币 +面值',
+        me.hand.length === 1 && me.money === 100 + im.value,
+        `手牌=${me.hand.length}｜money 100→${me.money}（面值 ${im.value}）`);
+    }
+    say('— R5-b 持有增益按面值折算：面值 20 → +6% —');
+    {
+      fresh(300); dbg.setActor(0);
+      const me = st().players[0];
+      me.hand = [V20.id];
+      check('R5b 1 张面值 20 的卡 → 收获增益 +6%',
+        Math.round(eng.improveBonus(me).rate * 100) === 6,
+        `rate=${eng.improveBonus(me).rate}`);
+    }
+    say('— R5-c 多张累加 —');
+    {
+      fresh(300); dbg.setActor(0);
+      const me = st().players[0];
+      me.hand = [V20.id, V20.id, V20.id, V20.id];
+      check('R5c 4 张面值 20 → +24%',
+        Math.round(eng.improveBonus(me).rate * 100) === 24,
+        `rate=${eng.improveBonus(me).rate}`);
+    }
+    say('— R5-d 封顶 +48%（堆再多也不越界）—');
+    {
+      fresh(300); dbg.setActor(0);
+      const me = st().players[0];
+      me.hand = Array.from({ length: 12 }, () => V20.id);
+      check('R5d 12 张面值 20 → 封顶 +48%',
+        Math.round(eng.improveBonus(me).rate * 100) === 48,
+        `rate=${eng.improveBonus(me).rate}`);
+    }
+    say('— R5-e 点卡牌 = 纯弃牌：手牌 −1、增益下降、但不给钱 —');
+    {
+      fresh(300); dbg.setActor(0); dbg.giveLand(0, hiLandIdx);
+      const me = st().players[0];
+      me.pos = hiLandIdx; me.hand = [V20.id, V20.id]; me.money = 150;
+      dbg.render();
+      const card = d.querySelector('#hand .hcard');
+      const m0 = me.money, r0 = Math.round(eng.improveBonus(me).rate * 100);
+      if (card) card.click();
+      await tick(120);
+      const r1 = Math.round(eng.improveBonus(me).rate * 100);
+      check('R5e 弃掉一张 → 手牌 −1、增益降低、钱不变（弃牌不换钱）',
+        me.hand.length === 1 && r1 < r0 && me.money === m0,
+        `手牌 2→${me.hand.length}｜增益 ${r0}%→${r1}%｜money=${me.money}`);
+    }
+  }
+
+  say('\n=== R6. 种子集市与图鉴（标价=扣款 / 囤满拦截 / 参考书可切页）· 人类逻辑实测 ===');
+  try {
+    const zzIdx = data.TRACK.findIndex(c => c.kind === 'zhongzi');
+    say('— R6-a 集市摆出固定数量的作物卡 —');
+    {
+      fresh(500); dbg.setActor(0);
+      check('R6a 集市摆出市场容量种作物', eng.marketCrops(st()).length === data.RULES.marketSize,
+        `${eng.marketCrops(st()).length} / ${data.RULES.marketSize}`);
+    }
+    say('— R6-b 在集市点一张卡 → 钱按实付价减少、手牌 +1、弹层刷新 —');
+    {
+      fresh(500); dbg.setActor(0);
+      dbg.openMarket();
+      await tick(150);
+      const img = d.querySelector('#marketlist img[data-seed]');
+      const me = st().players[0];
+      const cid = img && img.dataset.seed;
+      const price = eng.traitSeedCost(me, cid, data.cropById(cid).cost);
+      const m0 = me.money, s0 = eng.seedCount(me, cid);
+      if (img) img.click();
+      await tick(150);
+      check('R6b 买下 → 手牌 +1、钱按实付价减少',
+        eng.seedCount(me, cid) === s0 + 1 && me.money === m0 - price,
+        `种子 ${s0}→${eng.seedCount(me, cid)}｜money ${m0}→${me.money}（实付 ${price}）`);
+    }
+    say('— R6-c 同一作物囤满上限 → 买不进去 —');
+    {
+      fresh(500); dbg.setActor(0);
+      const me = st().players[0];
+      const cid = data.CROPS[0].id;
+      me.seeds = { [cid]: data.RULES.seedMaxPerType };
+      const r = eng.buyCrop(st(), me, cid);
+      check('R6c 已囤满 → 购买被拒（且不扣钱）',
+        r.ok === false && eng.seedCount(me, cid) === data.RULES.seedMaxPerType,
+        `ok=${r.ok}｜msg=${r.msg}`);
+    }
+    say('— R6-d 图鉴：四个页签都能点到，且各自列出对应卡 —');
+    {
+      const tabs = [['crop', data.CROPS], ['weather', data.WEATHERS],
+                    ['improve', data.IMPROVES], ['land', data.LANDS]];
+      const bad = [];
+      for (const [k, arr] of tabs) {
+        dbg.openHandbook(k);
+        await tick(120);
+        const btns = [...d.querySelectorAll('.hb-tab')];
+        const on = btns.find(b => b.classList.contains('on'));
+        const txt = (d.getElementById('modal-body') || {}).textContent || '';
+        if (!on || on.dataset.hb !== k) bad.push(`${k}: 页签未高亮`);
+        if (!arr.every(x => txt.includes(x.name))) bad.push(`${k}: 内容缺卡`);
+        check(`R6d 图鉴「${k}」页签：高亮正确 + 列出该页全部卡`, bad.filter(b=>b.startsWith(k)).length === 0,
+          bad.filter(b=>b.startsWith(k)).join('；') || 'OK');
+      }
+      const c = d.getElementById('modal-close'); if (c) c.click();
+    }
+  } catch (e) { check('R6 段异常', false, String((e && e.message) || e)); }
+
+  say('\n=== R7. 面板 / 行动顺序条 / 日志 / 掷骰按钮可用性 · 人类逻辑实测 ===');
+  say('— R7-a 顶栏「行动顺序」条：4 席、姓名与 G.order 对齐、当前席高亮 —');
+  {
+    fresh(200);
+    const G = st();
+    const chips0 = [...d.getElementById('orderstrip').querySelectorAll('.os-chip')];
+    check('R7a-1 顺序条 4 席', chips0.length === 4, `chips=${chips0.length}`);
+    check('R7a-2 姓名顺序 = G.order',
+      chips0.map(c=>c.textContent.trim()).join('|') === G.order.map(s=>G.players[s].name).join('|'),
+      chips0.map(c=>c.textContent.trim()).join(' → '));
+    check('R7a-3 当前行动席高亮 .on 且唯一',
+      chips0.filter(c=>c.classList.contains('on')).length === 1
+        && chips0[G.turn].classList.contains('on'), `turn=${G.turn}`);
+    if (G.order.length >= 3) {
+      dbg.setActor(G.order[2]);
+      const c2 = [...d.getElementById('orderstrip').querySelectorAll('.os-chip')];
+      check('R7a-4 已行动过的席位置灰 .done（前 2 个）',
+        c2[0].classList.contains('done') && c2[1].classList.contains('done')
+          && !c2[2].classList.contains('done'),
+        c2.map(c=>c.textContent.trim()+':'+(c.classList.contains('done')?'done':'—')).join(' '));
+    }
+  }
+
+  say('— R7-b 部落面板：座位对齐、欠款标红、破产标签（且不再显示「行动中」）—');
+  {
+    fresh(200);
+    const G = st();
+    let cards = [...d.querySelectorAll('#players .pcard')];
+    check('R7b-1 面板 4 张部落卡', cards.length === 4, `cards=${cards.length}`);
+    const actIdx = cards.findIndex(c=>c.classList.contains('active'));
+    check('R7b-2 「行动中」只落在当前行动席',
+      actIdx === G.order[G.turn], `active=${actIdx} curSeat=${G.order[G.turn]}`);
+
+    dbg.setActor(0);
+    G.players[0].money = -30; dbg.render();
+    cards = [...d.querySelectorAll('#players .pcard')];
+    check('R7b-3 欠款 → 金额标红(.debt)且为负数',
+      cards[0].querySelector('.pmoney').classList.contains('debt')
+        && /-30/.test(cards[0].querySelector('.pmoney').textContent),
+      cards[0].querySelector('.pmoney').textContent.replace(/\s+/g,' '));
+
+    dbg.setActor(1);
+    G.players[1].bankrupt = true; dbg.render();
+    cards = [...d.querySelectorAll('#players .pcard')];
+    check('R7b-4 破产 → 卡片 .bankrupt + 「破产出局」标签',
+      cards[1].classList.contains('bankrupt') && !!cards[1].querySelector('.ptag.dead'),
+      cards[1].querySelector('.pname').textContent.replace(/\s+/g,' '));
+    check('R7b-5 破产席即使轮到也不显示「行动中」',
+      !cards[1].classList.contains('active'), cards[1].className);
+  }
+
+  say('— R7-c 日志：每行带「R回合」前缀 + 图标；用到的 kind 必须在登记表里（否则裸文本无色彩）—');
+  {
+    fresh(200);
+    const G = st();
+    const box = d.getElementById('log');
+    check('R7c-1 开场日志已渲染', box.children.length > 0, `${box.children.length} 行`);
+    const lines = [...box.children];
+    check('R7c-2 每行都带「R<回合>」前缀',
+      lines.every(l => /^R\d+$/.test(l.querySelector('.rt').textContent.trim())),
+      lines[0].querySelector('.rt').textContent);
+    check('R7c-3 每行都有图标', lines.every(l => (l.querySelector('.ico').textContent||'').trim().length > 0));
+    const shown = G.log.slice(-60);
+    const unknown = [...new Set(shown.map(l=>l.kind))].filter(k => !dbg.LOG_KINDS.includes(k));
+    check('R7c-4 用到的 kind 全在 LOG_KIND 登记表',
+      unknown.length === 0, unknown.join(',') || 'OK');
+    const mismatch = lines.map((el,i) => {
+      const l = shown[i]; if (!l) return null;
+      const ico = dbg.LOG_KIND[l.kind] ? dbg.LOG_KIND[l.kind][0] : '';
+      return el.querySelector('.ico').textContent.trim() === ico ? null : `${l.kind}:${el.querySelector('.ico').textContent}`;
+    }).filter(Boolean);
+    check('R7c-5 每行图标 = LOG_KIND 登记的那个', mismatch.length === 0, mismatch.join(';') || 'OK');
+  }
+
+  say('— R7-d 图例上方的三类计数徽章，要与「我」的手牌完全一致 —');
+  {
+    fresh(200); dbg.setActor(0);
+    const G = st();
+    const me = G.players[dbg.viewSeat()];
+    me.seeds = { [data.CROPS[0].id]: 2, [data.CROPS[1].id]: 3 };
+    me.hand = [data.IMPROVES[0].id, data.IMPROVES[1].id];
+    me.weatherCards = [data.WEATHERS[0].id];
+    dbg.render();
+    check('R7d-1 种子徽章 = 手头种子总数（2+3=5）',
+      d.getElementById('seedcount2').textContent === '5', d.getElementById('seedcount2').textContent);
+    check('R7d-2 改良徽章 = hand.length',
+      d.getElementById('handcount2').textContent === '2', d.getElementById('handcount2').textContent);
+    check('R7d-3 气象徽章 = weatherCards.length 且入口高亮 urgent',
+      d.getElementById('weathercount').textContent === '1'
+        && d.getElementById('hub-weather').classList.contains('urgent'),
+      `count=${d.getElementById('weathercount').textContent}`);
+    check('R7d-4 改良增益徽章显示合计百分比',
+      /收获 \+\d+%/.test(d.getElementById('impbonus').textContent),
+      d.getElementById('impbonus').textContent);
+  }
+
+  say('— R7-e 掷骰按钮可用性三态：落格操作框开着时不许再掷（否则同一部落连走两回合）—');
+  {
+    fresh(200); dbg.setActor(0); dbg.render();
+    check('R7e-1 真人回合、无操作框 → 可掷骰',
+      d.getElementById('btn-roll').disabled === false, `disabled=${d.getElementById('btn-roll').disabled}`);
+    dbg.showActions('测试回合', dbg.postMoveActions());
+    dbg.render();
+    check('R7e-2 操作框开着 → 掷骰被禁用',
+      d.getElementById('btn-roll').disabled === true, `disabled=${d.getElementById('btn-roll').disabled}`);
+    d.getElementById('actionbox').hidden = true; dbg.render();
+    check('R7e-3 收起操作框 → 恢复可掷',
+      d.getElementById('btn-roll').disabled === false, `disabled=${d.getElementById('btn-roll').disabled}`);
+    /* 电脑回合：切 solo 后把回合交给一个电脑席 */
+    w.__game.setMode('solo'); w.__game.setSeat(0);
+    const aiSeat = [1,2,3].find(s => w.__game.isAI(s));
+    dbg.setActor(aiSeat); dbg.render();
+    const b = d.getElementById('btn-roll');
+    check('R7e-4 电脑回合 → 掷骰禁用且按钮标注「电脑行动」',
+      b.disabled === true && /电脑|🤖/.test(b.textContent), `disabled=${b.disabled}｜${b.textContent.trim()}`);
+    w.__game.setMode('local'); dbg.setActor(0); dbg.render();
+  }
+
+  say('— R7-f 顶栏信息条：回合数 / 胜利线 / 当前部落 —');
+  {
+    fresh(200);
+    const G = st();
+    check('R7f-1 回合数 = G.round',
+      d.getElementById('round').textContent === String(G.round), d.getElementById('round').textContent);
+    check('R7f-2 胜利线 = winMoney',
+      d.getElementById('winline').textContent === String(dbg.winMoney), d.getElementById('winline').textContent);
+    check('R7f-3 当前部落名 = 当前行动者',
+      d.getElementById('curtribe').textContent.includes(G.players[G.order[G.turn]].name),
+      d.getElementById('curtribe').textContent);
+  }
+
+  say('\n=== R8. 各弹层（土地详情 / 气象站 / 设置 / 规则）· 人类逻辑实测 ===');
+  const bodyTxt = () => (d.getElementById('modal-body') || {}).textContent || '';
+  const openCell = async (i) => { d.querySelector(`.cell[data-idx="${i}"]`).click(); await tick(120); };
+  say('— R8-a 土地详情：默认整张雾化（不泄漏数字）→ 花 5 币检测 → 本块地永久可见 —');
+  {
+    const idx = data.TRACK.findIndex(c => c.kind === 'land');
+    const land = data.landById(data.TRACK[idx].soilId);
+    fresh(500); dbg.setActor(0);
+    const me = st().players[dbg.viewSeat()];
+    me.money = 500; me.revealed = {};
+    await openCell(idx);
+    check('R8a-1 弹层显示土地名 / 地价 / 过路费',
+      bodyTxt().includes(land.name) && bodyTxt().includes(String(land.price)) && /过路费/.test(bodyTxt()),
+      land.name);
+    check('R8a-2 未检测：收益表被雾化（.revealtable.fogged + 雾化遮罩 + 检测按钮）',
+      !!d.querySelector('#modal-body .revealtable.fogged')
+        && !!d.querySelector('#modal-body .fogveil') && !!d.getElementById('btn-reveal'),
+      `fogged=${!!d.querySelector('#modal-body .revealtable.fogged')}`);
+    const fogcells = [...d.querySelectorAll('#modal-body .fogcell')].map(x=>x.textContent.trim());
+    check('R8a-3 未检测：所有收益格都是「？？」，不泄漏具体数字',
+      fogcells.length > 0 && fogcells.every(t => t === '？？'), fogcells.slice(0,3).join(','));
+    const m0 = me.money;
+    d.getElementById('btn-reveal').click();
+    await tick(150);
+    check('R8a-4 点检测 → 扣 5 币、表解除雾化、出现「高收益」行',
+      me.money === m0 - 5 && !d.querySelector('#modal-body .revealtable.fogged') && /高收益/.test(bodyTxt()),
+      `money ${m0}→${me.money}`);
+    d.getElementById('modal-close').click();
+    await openCell(idx);
+    check('R8a-5 再开同一块地 → 仍是「已检测·永久可见」，不重复收费',
+      /已检测/.test(bodyTxt()) && !d.querySelector('#modal-body .revealtable.fogged'), bodyTxt().slice(0,18));
+    d.getElementById('modal-close').click();
+  }
+  say('— R8-b 钱不足 5 币时「做土壤检测」必须禁用（不能白嫖数据）—');
+  {
+    const idx = data.TRACK.findIndex(c => c.kind === 'land');
+    fresh(0); dbg.setActor(0);
+    const me = st().players[dbg.viewSeat()];
+    me.money = 0; me.revealed = {};
+    await openCell(idx);
+    check('R8b 钱=0 → 检测按钮 disabled 且仍雾化',
+      d.getElementById('btn-reveal').disabled === true && !!d.querySelector('#modal-body .revealtable.fogged'),
+      `disabled=${d.getElementById('btn-reveal').disabled}`);
+    d.getElementById('modal-close').click();
+  }
+  say('— R8-c 气象站弹层：列出全部气象卡，灾害卡显示为负值，并点明「统一奖惩」是待解决 BUG —');
+  {
+    const wxIdx = data.TRACK.findIndex(c => c.kind === 'qixiang');
+    fresh(200);
+    await openCell(wxIdx);
+    check('R8c-1 气象站弹层列出全部气象卡名',
+      data.WEATHERS.every(w => bodyTxt().includes(w.name)), `共 ${data.WEATHERS.length} 张`);
+    const neg = data.WEATHERS.filter(w => w.sign < 0 || w.base < 0);
+    check('R8c-2 灾害卡在表里显示负值（不把灾害写成正）',
+      neg.length > 0 && neg.every(w => bodyTxt().includes(String(w.base))),
+      neg.map(w=>`${w.name}:${w.base}`).join(' '));
+    check('R8c-3 弹层点明「统一奖惩」是科学性 BUG', /BUG/.test(bodyTxt()) && /科学性/.test(bodyTxt()));
+    d.getElementById('modal-close').click();
+  }
+  say('— R8-d 对局设置弹层：四部落金额、胜利线、恢复默认、BGM 音量即时生效 —');
+  {
+    fresh(200);
+    dbg.openSettings();
+    await tick(120);
+    check('R8d-1 四个部落各有一个初始金额输入框',
+      d.querySelectorAll('#setlist input[type=number]').length === 4,
+      `inputs=${d.querySelectorAll('#setlist input[type=number]').length}`);
+    check('R8d-2 胜利线输入框值 = 当前 winMoney',
+      !!d.getElementById('win-money') && d.getElementById('win-money').value === String(dbg.winMoney),
+      d.getElementById('win-money') && d.getElementById('win-money').value);
+    d.getElementById('win-money').value = '9999';
+    d.getElementById('set-reset').click();
+    check('R8d-3 「恢复默认」把胜利线还原为默认 260',
+      d.getElementById('win-money').value === '260', d.getElementById('win-money').value);
+    const vol = d.getElementById('bgm-vol');
+    vol.value = '37';
+    vol.dispatchEvent(new w.Event('input', { bubbles: true }));
+    check('R8d-4 拖动 BGM 滑块即时改音量（不必点保存）',
+      Math.round(dbg.bgmVolume * 100) === 37 && d.getElementById('bgm-vol-txt').textContent === '37%',
+      `vol=${Math.round(dbg.bgmVolume * 100)}%`);
+    vol.value = '0'; vol.dispatchEvent(new w.Event('input', { bubbles: true }));
+    d.getElementById('modal-close').click();
+  }
+  say('— R8-e 规则弹层：部落/特长、核心机制、4 个科学性 BUG 都要有 —');
+  {
+    fresh(200);
+    dbg.openRules();
+    await tick(120);
+    check('R8e-1 列出四个部落名', data.TRIBES.every(t => bodyTxt().includes(t.name)),
+      data.TRIBES.map(t=>t.name).join('、'));
+    /* 2026-10-18：规则弹层里的「4 个科学性 BUG」段落已按需求删除。
+       断言反转为「已删除」，并补一条核心机制仍在。
+       课程教学内容没删 —— 见 游戏规则.md 第19节 / SPEC.md 第6节 / aihelper.js。 */
+    check('R8e-2 规则弹层已不含 4 个科学性 BUG 段（2026-10-18 删除）',
+      !/土壤数据缺失/.test(bodyTxt()) && !/气象损益统一/.test(bodyTxt())
+        && (bodyTxt().match(/BUG/g)||[]).length === 0,
+      'BUG 出现 ' + (bodyTxt().match(/BUG/g)||[]).length + ' 次');
+    check('R8e-3 核心规则文案在（没有种子不能种 / 过路费 20%）',
+      /没有种子就不能种/.test(bodyTxt()) && /过路费/.test(bodyTxt()));
+    d.getElementById('modal-close').click();
+  }
+
+  say('\n=== R9. 破产与胜负（欠款上限 / 清地 / 换手跳过 / 双胜利途径）· 人类逻辑实测 ===');
+  say('— R9-a 欠款阈值：−50 还不算，−51 才破产 —');
+  {
+    fresh(200); dbg.setActor(0);
+    const me = st().players[0];
+    me.money = -50;
+    check('R9a-1 欠款 −50 → 不破产', eng.checkBankrupt(st(), me) === false && !me.bankrupt, `money=${me.money}`);
+    me.money = -51;
+    check('R9a-2 欠款 −51 → 破产', eng.checkBankrupt(st(), me) === true && me.bankrupt === true, `money=${me.money}`);
+  }
+  say('— R9-b 破产即清地：名下土地全部回归无主 —');
+  {
+    fresh(200); dbg.setActor(0);
+    const idx = openIdx();
+    const idx2 = data.TRACK.findIndex((c,i)=>c.kind==='land' && i>idx);
+    dbg.giveLand(0, idx); dbg.giveLand(0, idx2);
+    const me = st().players[0];
+    me.money = -51; eng.checkBankrupt(st(), me);
+    check('R9b 破产 → lands 清空、landOwners 归还无主',
+      Object.keys(me.lands).length === 0
+        && st().landOwners[idx] === undefined && st().landOwners[idx2] === undefined,
+      `lands=${Object.keys(me.lands).length}`);
+  }
+  say('— R9-c 付过路费把自己付破产：仍照付给地主，再宣告破产 —');
+  {
+    fresh(200);
+    const idx = openIdx();
+    dbg.giveLand(0, idx);
+    dbg.setActor(1);
+    const mover = st().players[1], owner = st().players[0];
+    const land = data.landById(data.TRACK[idx].soilId);
+    const fee = Math.round(land.price * data.RULES.passRate);
+    mover.money = -51 + fee;          // 扣完正好 −51
+    mover.pos = (idx - 1 + 32) % 32;
+    const om0 = owner.money;
+    eng.stepMove(st(), 1);
+    check('R9c-1 付完过路费欠款 −51 → 破产',
+      mover.bankrupt === true && mover.money === -51, `money=${mover.money}`);
+    check('R9c-2 过路费照样转给地主（先扣费再判破产）',
+      owner.money === om0 + fee, `地主 ${om0}→${owner.money}`);
+  }
+  say('— R9-d 换手要跳过破产部落 —');
+  {
+    fresh(200);
+    const G = st();
+    G.players[G.order[1]].bankrupt = true;
+    G.turn = 0;
+    eng.stepEnd(G);
+    check('R9d 破产席被跳过：turn 0 → 2（不停在 1）', G.turn === 2, `turn=${G.turn}`);
+  }
+  say('— R9-e 胜利途径①：当前行动者达到胜利线即胜 —');
+  {
+    fresh(200);
+    const G = st();
+    const p = G.players[G.order[G.turn]];
+    p.money = dbg.winMoney;
+    eng.stepEnd(G);
+    check('R9e 达线 → over=true、winner=当前行动者',
+      G.over === true && G.winner === p, `winner=${G.winner && G.winner.name}`);
+  }
+  say('— R9-f 胜利途径②：其他部落全部破产 → 最后幸存者获胜（无需达线）—');
+  {
+    fresh(200);
+    const G = st();
+    const winSeat = G.order[0];
+    G.players.forEach((p,i) => { if (i !== winSeat) p.bankrupt = true; });
+    G.turn = 0;
+    const p = G.players[winSeat];
+    p.money = 0;
+    eng.stepEnd(G);
+    check('R9f 全员剩 1 人 → over=true、winner=幸存者',
+      G.over === true && G.winner === p, `winner=${G.winner && G.winner.name}`);
+  }
+  say('— R9-g UI：破产部落棋子灰化；达线弹胜利横幅（副标题写「达成胜利线」）—');
+  {
+    fresh(200);
+    const G = st();
+    G.players[2].bankrupt = true;
+    dbg.syncBoard2D();
+    check('R9g-1 破产部落棋子在图上灰化 .out',
+      !!d.querySelector('.pawn.' + G.players[2].tid)
+        && d.querySelector('.pawn.' + G.players[2].tid).classList.contains('out'),
+      G.players[2].name);
+    const p = G.players[G.order[G.turn]];
+    p.money = dbg.winMoney;
+    dbg.finishTurn();
+    await tick(150);
+    check('R9g-2 达线 → 胜利横幅弹出且写对部落名',
+      d.getElementById('banner').hidden === false
+        && d.getElementById('banner-title').textContent.includes(p.name),
+      d.getElementById('banner-title').textContent);
+    check('R9g-3 副标题写明「达成胜利线」',
+      /达成胜利线/.test(d.getElementById('banner-sub').textContent),
+      d.getElementById('banner-sub').textContent);
+  }
+  say('— R9-h 全员破产 → winner=null、横幅「本局无人获胜」—');
+  {
+    fresh(200);
+    const G = st();
+    G.players.forEach(p => { p.bankrupt = true; p.money = 0; });
+    G.turn = 0;
+    eng.stepEnd(G);
+    check('R9h-1 全员破产 → over=true、winner=null', G.over === true && G.winner === null,
+      `winner=${G.winner}`);
+    dbg.finishTurn();
+    await tick(150);
+    check('R9h-2 横幅显示「本局无人获胜」',
+      /无人获胜/.test(d.getElementById('banner-title').textContent),
+      d.getElementById('banner-title').textContent);
+  }
+  say('— R9-i 破产后其土地已无主 → 别人落在上面不再付过路费 —');
+  {
+    fresh(200);
+    const idx = openIdx();
+    dbg.giveLand(2, idx);
+    dbg.setActor(1);
+    const mover = st().players[1];
+    st().players[2].money = -51;
+    eng.checkBankrupt(st(), st().players[2]);
+    mover.pos = (idx - 1 + 32) % 32; const m0 = mover.money;
+    eng.stepMove(st(), 1);
+    check('R9i 破产者的土地回归无主 → 落上不收费',
+      mover.money === m0, `money ${m0}→${mover.money}`);
+  }
+
+  say('\n=== R10. 单机模式视角（seat vs turn 最易踩坑处）· 人类逻辑实测 ===');
+  {
+    /* 单机模式：面板/手牌/土地永远是「我」的（viewSeat 固定 = HUMAN_SEAT），
+       而回合行动者（curSeat）会随换手变到电脑身上。二者必须分开。 */
+    w.__game.newGame(); w.__game.setMode('solo'); w.__game.setSeat(0);
+    dbg.setFastMode(true);
+    const G = st();
+    const aiSeat = [1,2,3].find(s => w.__game.isAI(s));
+    const me = G.players[0], ai = G.players[aiSeat];
+
+    dbg.setActor(aiSeat);
+    check('R10a-1 轮到电脑时 viewSeat 仍是我的座位 0',
+      dbg.viewSeat() === 0, `viewSeat=${dbg.viewSeat()}`);
+    check('R10a-2 curSeat = 电脑席（与 viewSeat 不同）',
+      dbg.curSeat() === aiSeat && dbg.curSeat() !== dbg.viewSeat(), `curSeat=${dbg.curSeat()}`);
+
+    me.hand = [data.IMPROVES[0].id, data.IMPROVES[1].id, data.IMPROVES[2].id];
+    ai.hand = [];
+    const L = openIdx();
+    dbg.giveLand(0, L);
+    me.pos = L;                 // 站在自己的地上，使「种植」按钮的灰因 = 回合归属（而非站位）
+    dbg.render();
+    check('R10a-3 改良手牌计数显示「我」的 3 张（不是电脑的 0）',
+      d.getElementById('handcount').textContent === '3'
+        && d.getElementById('handcount2').textContent === '3',
+      `handcount=${d.getElementById('handcount').textContent}`);
+    check('R10a-4 我的土地出现「收获/种植」操作按钮',
+      d.querySelectorAll('#myfarms button').length > 0,
+      `n=${d.querySelectorAll('#myfarms button').length}`);
+    const needDisabled = [...d.querySelectorAll('#myfarms button')].every(b => b.disabled === true);
+    check('R10a-5 电脑回合 → 我的土地操作按钮全禁用（不替电脑操作）', needDisabled,
+      [...d.querySelectorAll('#myfarms button')].map(b=>b.disabled).join(','));
+    const anyTitle = [...d.querySelectorAll('#myfarms button')].map(b=>b.title).join('｜');
+    check('R10a-6 灰按钮写明原因「现在是电脑的回合」', /电脑/.test(anyTitle), anyTitle.slice(0,40));
+
+    /* 切回轮到我自己 → 面板操作恢复可用 */
+    dbg.setActor(0);
+    check('R10a-7 轮到我时 viewSeat = curSeat（面板与行动者合一）',
+      dbg.viewSeat() === dbg.curSeat() && dbg.curSeat() === 0, `viewSeat=${dbg.viewSeat()}`);
+    const mineNow = [...d.querySelectorAll('#myfarms button')].some(b => b.disabled === false);
+    check('R10a-8 轮到我 → 土地操作有按钮可点', mineNow,
+      [...d.querySelectorAll('#myfarms button')].map(b=>`${b.textContent.trim()}:${b.disabled}`).join(' '));
+
+    /* 收尾：把模式/座位还原，避免影响后续（虽然已是最后一轮） */
+    w.__game.setMode('local'); w.__game.setActor(0);
+  }
+}
+
+say(`\n=== 结果：${passes} 项通过 / ${fails} 项失败 ${fails?'✗':'✓'} ===`);
+</script>
+</body>
+</html>

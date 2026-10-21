@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- 手机全屏：把本页「添加到主屏幕」后从图标启动，就没有浏览器地址栏了（iOS / Android 都认） -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#f4efe3">
+<title>菜农部落 · 平面图板版</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23f4eee0'/%3E%3Ctext x='32' y='45' font-size='40' text-anchor='middle'%3E%F0%9F%8C%BE%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="intro.css">
+</head>
+<body>
+
+<!-- ============================================================
+     开篇引导层（intro）：进站先看到「开篇 + 玩法介绍」，
+     点「进入田亩」才露出下面的游戏本体。
+     - #intro-open开篇（匾额/ 宣传语 / 模式 / 部落选择）
+     - #intro-doc   玩法介绍（开局 / 回合流程 / 站点 / 胜负 / 入口）
+     两屏在同一层内切换，#app 及以下内容在 intro 未结束时整体不可见、不可点。
+     是否跳过记在 localStorage（intro.seen），看过一次之后直接进游戏。
+     ============================================================ -->
+<div id="intro" class="intro-layer">
+  <div class="intro-inner">
+
+    <!-- ---------- 开篇 ---------- -->
+    <section class="intro-screen" id="intro-open">
+      <!-- 底纹：水墨中国地图（1772×1200 原图）。
+           两层结构：mapbg 是图本身（opacity .44 + 径向蒙版），
+           mapveil 是一层米色纱负责把四周溶进宣纸底色。
+           ⚠️ 不要给这两层加 backdrop-filter —— 它会把底图本身一起模糊。 -->
+      <img class="intro-mapbg" src="assets/board_map.png" alt="" aria-hidden="true" draggable="false">
+      <div class="intro-mapveil" aria-hidden="true"></div>
+      <!-- 宣纸柔化层：盖住底图、把文字区托起来（介于「看得清」与「不糊」之间） -->
+      <div class="intro-paperwash" aria-hidden="true"></div>
+
+      <div class="intro-plaque">
+        <h1>菜农<em>部落</em></h1>
+        <div class="intro-sub">中国农业科学 · 回合制桌游</div>
+        <span class="intro-seal">农</span>
+      </div>
+
+      <!-- ---------- 操作按钮组 ----------
+           2026-10-18：从页面最底部挪到匾额正下方。
+           原因：按钮压在长页面的末尾，玩家要一路滚到底才能开始，
+           而「进入田亩」是这个页面唯一的主要行动 —— 必须第一眼可见。
+           ⚠️ 同时删掉了原来的 .intro-modes（本地对战 / 单机模式切换）：
+                顶栏本来就有同样的模式切换（#mode-seg），
+                封面再来一份是重复，且两处会各写一份 localStorage 容易不一致。
+                模式切换的唯一入口现在是顶栏。 -->
+      <div class="intro-go">
+        <button class="intro-start" id="intro-start" type="button">进入田亩</button>
+        <button class="intro-ghost" id="intro-to-doc" type="button">先看玩法</button>
+        <!-- 游戏简介：点开是卷轴展开动画（intro.js 里绑 openAbout） -->
+        <button class="intro-ghost intro-scroll-btn" id="btn-intro-about" type="button">📜 游戏简介</button>
+      </div>
+
+      <div class="intro-slogans">
+        <p class="hs-main">绕中国地图种地，赢满仓丰收。</p>
+        <p>一方水土一方农，<b>四个部落四种活法</b>。</p>
+        <p>根植华夏土壤与农耕血脉，打造趣味玩法，感受农业与地理的奥秘。</p>
+      </div>
+
+      <div class="intro-pick" id="intro-pick">
+        <div class="intro-pick-head">
+          <h2>四  部  落</h2>
+          <p id="intro-pick-tip">四个部落的特长差别很大 —— 起始位置、盈利能力、行动节奏各不相同。单机模式可在顶栏切换，你操控其中一个部落。</p>
+        </div>
+        <div class="intro-pickgrid" id="intro-pickgrid"><!-- 由 src/intro.js 渲染 --></div>
+      </div>
+
+      <p class="intro-hint">
+        规则很轻：<kbd>掷骰</kbd> → <kbd>走格</kbd> → <kbd>买地</kbd> → <kbd>种收</kbd>　三分钟上手，一局十几分钟
+      </p>
+    </section>
+
+    <!-- ---------- 游戏简介卷轴 ----------
+         独立于 .intro-screen：它要盖在开篇之上做卷轴展开，
+         所以自己是一层 fixed 浮层（z-index 205，压过 intro 但低于 ordergate）。
+         动画：卷轴本体先横向展开（scaleX），文字再淡入上移。 -->
+    <div id="about-scroll" class="scroll-layer" hidden role="dialog" aria-modal="true" aria-label="游戏简介">
+      <div class="scroll-dim" id="about-dim"></div>
+      <div class="scroll-rod scroll-rod-t"></div>
+      <div class="scroll-paper">
+        <div class="scroll-cap">
+          <h2 class="scroll-title">游戏简介</h2>
+          <button class="scroll-x" id="about-close" type="button" title="收起卷轴">✕</button>
+        </div>
+        <div class="scroll-body">
+          <p class="scroll-lead">菜农部落是一款以<b>种菜、农业改良、收获售卖</b>为核心玩法的策略桌面游戏（类大富翁玩法）。</p>
+          <p>玩家扮演不同部落，通过<b>抢占肥沃土地</b>、<b>规划作物种植</b>、<b>收获蔬菜积累财富</b>。</p>
+          <p class="scroll-tail">玩家可以在轻松欢乐的农耕博弈中体验策略规划和财富增长的乐趣。</p>
+        </div>
+        <div class="scroll-seal" aria-hidden="true">菜农</div>
+      </div>
+      <div class="scroll-rod scroll-rod-b"></div>
+    </div>
+
+    <!-- ---------- 玩法介绍 ---------- -->
+    <section class="intro-screen" id="intro-doc" hidden>
+      <header class="intro-nav">
+        <span class="hn-brand"><i>🌾</i>菜农部落</span>
+        <div class="hn-links">
+          <button type="button" data-jump="intro-open">开篇</button>
+          <button type="button" data-jump="intro-kit">开局</button>
+          <button type="button" data-jump="intro-flow">回合</button>
+          <button type="button" data-jump="intro-sta">站点</button>
+          <button type="button" data-jump="intro-win">胜负</button>
+          <button class="hn-cta" id="intro-doc-go" type="button">进入田亩</button>
+        </div>
+      </header>
+
+      <div class="intro-doc-body">
+        <div class="sec-tag"><h2>开局你有什么<small>STARTING KIT</small></h2></div>
+        <div class="intro-card" id="intro-kit">
+          <h3><span class="ic">🎴</span>选择一个部落开局</h3>
+          <p class="lead">初始额度按「行动顺序」发放 —— 排在第几就拿多少，先手是有补偿的。</p>
+          <div class="kitgrid">
+            <div class="kit"><b>150</b><span>初始肥力币</span><i>可在设置里逐部落调整</i></div>
+            <div class="kit"><b>2</b><span>随机种子卡</span><i>抽 3 张候选，取 2 张入库</i></div>
+            <div class="kit"><b>1</b><span>免费买地卡</span><i>不花钱拿一块无主地</i></div>
+            <div class="kit"><b>+60</b><span>末位先手补偿</span><i>次序第 4 名拿满</i></div>
+          </div>
+        </div>
+
+        <div class="sec-tag"><h2>一个回合怎么走<small>ONE ROUND</small></h2></div>
+        <div class="flowgrid" id="intro-flow">
+          <div class="flowstep"><span class="no">1</span><span class="arrow">›</span>
+            <h4>掷骰子</h4><p>两颗骰子决定走几格。丝绸部落每 2 回合还能追加一颗「追风骰」。</p></div>
+          <div class="flowstep"><span class="no">2</span><span class="arrow">›</span>
+            <h4>顺时针走</h4><p>逐格前进，经过起点得 50 币；落在他人土地要付一半地价，过路不收费。</p></div>
+          <div class="flowstep"><span class="no">3</span><span class="arrow">›</span>
+            <h4>落格结算</h4><p>土地格看归属，站点格发牌 —— 集市卖种、气象站给卡、改良站发改良。</p></div>
+          <div class="flowstep"><span class="no">4</span><span class="arrow">›</span>
+            <h4>经营决策</h4><p>只能给「脚下的地」买地与种植；地里作物随时可收，收完这块地本回合不能再种。</p></div>
+          <div class="flowstep"><span class="no">5</span>
+            <h4>收尾换手</h4><p>判定胜负或破产，然后按本局抽签的顺序交给下一位。</p></div>
+        </div>
+
+        <div class="sec-tag"><h2>赛道上的站点<small>STATIONS</small></h2></div>
+        <div class="stagrid" id="intro-sta">
+          <div class="sta" style="--sc:#d0392b;--sc-soft:rgba(208,57,43,.12);--sc-line:rgba(208,57,43,.32)">
+            <div class="ic">🚩</div><h4>起点</h4><p>每经过一次得 50 肥力币。绕得越勤，财路越稳。</p></div>
+          <div class="sta" style="--sc:#d8a03a;--sc-soft:rgba(216,160,58,.14);--sc-line:rgba(216,160,58,.34)">
+            <div class="ic">🌰</div><h4>种子集市</h4><p>买作物卡囤手上。种一片消耗一张 —— 没种子就种不了。</p></div>
+          <div class="sta" style="--sc:#4a9bd8;--sc-soft:rgba(74,155,216,.12);--sc-line:rgba(74,155,216,.32)">
+            <div class="ic">🌦️</div><h4>气象站</h4><p>抽一张延时气象卡，下次种植自动生效（一次性，可为负）。</p></div>
+          <div class="sta" style="--sc:#59a85a;--sc-soft:rgba(89,168,90,.12);--sc-line:rgba(89,168,90,.32)">
+            <div class="ic">🎴</div><h4>土壤改良站</h4><p>抽改良卡：抽到即得面值肥力币，持有期间按面值折算加成收获。</p></div>
+          <div class="sta" style="--sc:#5a5560;--sc-soft:rgba(90,85,96,.10);--sc-line:rgba(90,85,96,.28)">
+            <div class="ic">⛓️</div><h4>监狱</h4><p>落在上面暂停一回合，反思不当农业行为。路过不坐牢。</p></div>
+        </div>
+
+        <div class="sec-tag"><h2>怎么算赢<small>HOW TO WIN</small></h2></div>
+        <div class="endgrid" id="intro-win">
+          <div class="endcard win">
+            <h3>🏆 两条胜利途径</h3>
+            <p><b>① 堆满肥力币</b>：轮到自己的回合结束时，手上金币达到胜利线（默认 260，可在设置里调）即刻获胜。</p>
+            <p style="margin-top:8px"><b>② 成为最后的幸存者</b>：其他部落全部欠款破产，只剩你一个 —— 你赢。</p>
+          </div>
+          <div class="endcard lose">
+            <h3>💀 欠款会破产</h3>
+            <p>允许欠款，但<b>最低到 −50</b>。一旦欠超过 50，该部落破产退出本局，名下土地全部回归无主。</p>
+            <p style="margin-top:8px">其余部落继续玩，不受影响。破产后不再参与行动顺序。</p>
+          </div>
+        </div>
+
+        <div class="sec-tag"><h2>游戏里还有这些<small>EXTRAS</small></h2></div>
+        <div class="entrygrid">
+          <div class="entry"><span class="ei">📖</span>
+            <div><h4>图鉴</h4><p>全部卡牌道具的详细信息 —— 土地、作物、气象、改良，不受谁持有影响。</p></div></div>
+          <div class="entry"><span class="ei">📜</span>
+            <div><h4>规则</h4><p>完整规则与参数表，含过路费、破产、种子上限等全部细则。</p></div></div>
+          <div class="entry"><span class="ei">⚙️</span>
+            <div><h4>设置</h4><p>调整各部落初始金额、胜利线、电脑行动速度与背景音乐音量。</p></div></div>
+          <div class="entry"><span class="ei">🏮</span>
+            <div><h4>新手教程</h4><p>「小禾」问答手册 —— 你可能遇到的 33 个问题，答完就会玩。</p></div></div>
+          <div class="entry"><span class="ei">📔</span>
+            <div><h4>随农记</h4><p>四个部落的背景小故事 —— 从哪里来，为什么擅长这个。</p></div></div>
+          <div class="entry"><span class="ei">🏆</span>
+            <div><h4>农耕志</h4><p>成就系统与我的农事 —— 只记荣耀，不碰胜负。</p></div></div>
+        </div>
+      </div>
+
+      <footer class="intro-foot">
+        <button class="intro-ghost" id="intro-back" type="button">← 回到开篇</button>
+        <button class="intro-start" id="intro-doc-go2" type="button">进入田亩</button>
+      </footer>
+    </section>
+
+  </div>
+</div>
+
+<!-- ============ 顶栏 ============ -->
+<header>
+  <div class="brand">
+    <div class="logo" id="logo-box"><span>🌾</span></div>
+    <div>
+      <h1>菜农部落</h1>
+      <small>农业科学与土壤 · 平面图板桌游</small>
+    </div>
+  </div>
+  <div class="round-info">
+    <span>回合 <b id="round">1</b></span>
+    <span class="sep"></span>
+    <span>目标 <b id="winline">260</b> 肥力币</span>
+    <span class="sep"></span>
+    <span>当前 <b id="curtribe">—</b></span>
+    <span class="sep"></span>
+    <!-- 本回合行动顺序：2026-10-15 起改为「按钮 + 弹窗」。
+         原来是一条常驻的横向顺序条（#orderstrip），顶栏被它挤得右对齐换行，
+         而且开局时玩家往往来不及看。现在点这个按钮才弹出完整顺序，
+         并且每次开新局会自动弹一次（见 main.js 的 showOrderGate）。 -->
+    <button id="btn-order" class="tb" title="查看本局行动顺序">🔀<span class="tb-t">行动顺序</span></button>
+  </div>
+  <div class="top-actions">
+    <div class="seg" id="mode-seg" title="切换对局模式（会重新开局）">
+      <button data-mode="local">本地对战</button>
+      <button data-mode="solo">单机模式</button>
+    </div>
+    <button id="btn-settings" class="tb" title="调整各部落初始金额 · 查看部落特长">⚙<span class="tb-t">设置</span></button>
+    <button id="btn-handbook" class="tb" title="图鉴：查看全部卡牌的详细信息，不受谁持有影响">📖<span class="tb-t">图鉴</span></button>
+    <button id="btn-fast" class="tb" title="电脑每步间隔：3 秒 / 0.6 秒（快速）"><span id="fast-ico">🐢</span><span class="tb-t" id="fast-txt">3 秒</span></button>
+    <!-- 简约版：收起底栏与左侧竖列，把棋盘放到最大（投屏 / 围观用）。
+         纯布局切换：JS 只改 body.class 并重调 layoutBoard()，不碰任何游戏逻辑。 -->
+    <button id="btn-simple" class="tb" title="简约版：放大棋盘，收起手牌与侧栏（再点一次回到完整界面）">🔍<span class="tb-t">简约版</span></button>
+    <button id="btn-rules" class="tb">📜<span class="tb-t">规则</span></button>
+    <!-- 回到开篇与玩法介绍（intro.js 监听这个 click，见该文件） -->
+    <button id="btn-intro" class="tb" title="回到开篇与玩法介绍">🏮<span class="tb-t">开篇</span></button>
+    <button id="btn-new" class="tb primary">🔄<span class="tb-t">新游戏</span></button>
+  </div>
+</header>
+
+<div id="app">
+  <!-- ============ 中间：平面图板（原 PDF 图板底图） ============ -->
+  <main id="stage">
+    <div id="board-wrap">
+      <img id="board" src="assets/board_full.png" alt="菜农部落图板" draggable="false">
+      <!-- 只换中间那块地图：叠一层新图，裁到原图中心地图区，
+           外圈 32 张赛道卡仍用原图的印刷卡面（图案+文字+价格）。 -->
+      <img id="board-map" src="assets/board_map.png" alt="" aria-hidden="true" draggable="false">
+      <div id="slots"></div>
+      <div id="cells"></div>
+      <div id="pawns"></div>
+    </div>
+
+    <!-- 右下角竖列：我的手牌（在上） + 图例（在下） -->
+    <div class="legend-col">
+      <!-- 三类手牌入口：点开看全部四个部落的卡（首行有各部落数量统计） -->
+      <section id="cardhub">
+        <button class="hub" id="hub-seed" type="button" title="查看全部部落的作物卡（徽章 = 我自己的张数）">
+          <span class="hub-ico">🌰</span><span class="hub-name">作物卡</span><span class="pill" id="seedcount2">0</span>
+        </button>
+        <button class="hub" id="hub-weather" type="button" title="查看全部部落的延时气象卡（徽章 = 我自己的张数）">
+          <span class="hub-ico">🌦️</span><span class="hub-name">气象卡</span><span class="pill" id="weathercount">0</span>
+        </button>
+        <button class="hub" id="hub-improve" type="button" title="查看全部部落的改良卡（徽章 = 我自己的张数）">
+          <span class="hub-ico">🎴</span><span class="hub-name">改良卡</span><span class="pill" id="handcount2">0</span>
+        </button>
+      </section>
+
+      <section id="farmpanel">
+        <h4>我的土地与作物 <span id="landcount" class="pill">0</span></h4>
+        <div id="myfarms" class="hscroll"></div>
+      </section>
+
+      <!-- 图例上方 -->
+      <div class="legend">
+        <h4>图例</h4>
+        <!-- 四部落的图例行由 JS 从 TRIBES 渲染（renderLegend）。
+             早先在这里硬编码了「A/B/C/D 部落」，改部落名时漏了一处。 -->
+        <div id="legendrows"></div>
+        <div class="legend-row" style="margin-top:6px;padding-top:6px;border-top:1px solid var(--line)">
+          <span class="sw" style="background:linear-gradient(180deg,rgba(255,252,244,.6),rgba(235,222,190,.5))"></span>站点格
+        </div>
+      </div>
+
+      <!-- 农耕志：成就 · 图鉴 · 我的农事。
+           纯荣誉层（存档走 localStorage 的 cnvillage.codex.v1），
+           与对局状态 G 完全隔离，不影响金币/胜负/AI。 -->
+      <button id="codex-entry" type="button"
+              title="农耕志：我的农事 · 图鉴收集 · 成就称号（只记荣耀，不碰胜负）">
+        <span class="ce-seal">志</span>
+        <span class="ce-mid">
+          <span class="ce-name">农耕志</span>
+          <span class="ce-sub">成就 · 图鉴 · 我的农事</span>
+        </span>
+        <span class="ce-pct" id="codex-pct">0%</span>
+      </button>
+
+      <!-- 手牌（作物卡 + 改良卡）：从底栏搬到这里，排在「农耕志」下方。
+           搬过来是为了把底栏压到只剩一条窄边（--bottom-h 减半），
+           底栏原本 104px 里装的就是这两行卡，横向还空一大片。
+           竖列本来就是「图板左侧的常驻信息列」，手牌属于玩家必须随时能看见的信息，
+           放这里比压在底部更近，也不再占用棋盘纵向空间。
+           ID 全部沿用原来的（seedcount / handcount / seedrow / hand / impbonus），
+           main.js 里按ID 取元素的代码一行都不用改。 -->
+      <div class="legend-hand">
+        <h4>作物卡 <span id="seedcount" class="pill">0</span> · 改良卡 <span id="handcount" class="pill">0</span>
+          <span id="impbonus" class="impbonus">无加成</span>
+        </h4>
+        <div id="seedrow" class="seedrow"></div>
+        <div id="hand" class="hand hscroll"></div>
+      </div>
+    </div>
+
+    <!-- 电脑行动提示：只在正中显示一个小窗，不遮挡棋盘（要能看见电脑棋子在哪） -->
+    <div id="waiting" hidden>
+      <div class="wait-box">
+        <div class="wait-head">
+          <span class="wait-spinner"></span>
+          <span class="wait-who"><span id="wait-tribe">电脑</span> 行动中</span>
+        </div>
+        <div class="wait-act" id="wait-act">思考中…</div>
+        <div class="wait-dots"><i></i><i></i><i></i></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ============ 可滚动区 ============
+       桌面端 #scrollzone 用 display:contents，子元素保持原来的 grid/flex 位置不变；
+       手机端它才真正变成一个盒子：地图占上半屏，其余全部塞进来竖向滚动。 -->
+  <div id="scrollzone">
+
+  <!-- ============ 中间下方：四部落面板（排成一排） ============ -->
+  <section id="tribebar">
+    <div id="players"></div>
+  </section>
+
+  <!-- 竖向分隔条：拖拽调节图板区 / 右侧面板 宽度 -->
+  <div class="splitter splitter-v" id="split-v" title="拖拽调节宽度 · 双击复位"></div>
+
+  <!-- ============ 右侧：操作与日志 ============ -->
+  <aside id="sidepanel">
+    <div class="panel-block" id="actionbox" hidden>
+      <h4 id="actiontitle">可执行操作</h4>
+      <div id="actions" class="actions"></div>
+    </div>
+
+    <div class="panel-block grow">
+      <h4>游戏日志</h4>
+      <div id="log" class="log"></div>
+    </div>
+
+    <div class="panel-block panel-block--foot">
+      <div id="dice" class="dice-box"></div>
+      <button id="btn-roll" class="roll">🎲 掷骰子开始回合</button>
+    </div>
+  </aside>
+
+  </div><!-- /#scrollzone -->
+</div>
+
+<!-- 横向分隔条：拖拽调节主区/ 底栏 高度 -->
+<div class="splitter splitter-h" id="split-h" title="拖拽调节高度 · 双击复位"></div>
+
+<!-- ============ 底部：新手教程 / 随农记 两个入口 ============
+     「作物卡 · 改良卡」手牌已搬到图板左下角竖列、排「农耕志」之下（见 .legend-hand），
+     底栏只剩窄屏入口按钮，因此高度默认值从 104px 减半到 52px（见 SPLIT_DEFAULT.bottom）。
+     保持在 body 层：桌面端是固定底栏，手机端固定在屏幕底部，
+     不塞进 #scrollzone —— 否则 display:contents 会把它变成 #app 的grid item。 -->
+<footer id="bottombar">
+  <!-- 新手教程 / 随农记 两个入口：**手机 / 窄屏（<1500px）专用**，
+       PC（≥1500px）这两个按钮被 CSS 隐藏，入口仍是教程预留列里的灯笼罩。
+       事件绑定在 src/aihelper.js（独立浮层）。 -->
+  <div class="bb-entry" id="ai-entry">
+    <button class="ai-entry-btn" id="ai-open-qa" type="button" title="打开新手教程 · 问答手册">
+      <span class="ai-entry-ic">🏮</span><span>新手教程</span>
+    </button>
+    <button class="ai-entry-btn" id="ai-open-book" type="button" title="翻开《随农记》· 四个部落与一方水土">
+      <span class="ai-entry-ic">📔</span><span>随农记</span>
+    </button>
+  </div>
+</footer>
+
+<!-- ============ 新手教程「小禾」问答手册 + 底面《随农记》 ============
+     独立浮层（见 src/aihelper.js）：不读写对局状态 G，不碰引擎 / 规则 / 平衡。
+     纯静态问答（点问题看答案），不联网、不调用任何大模型。
+     宽屏（≥1500）常驻预留右侧一条窄列；窄屏 / 手机改为右侧弹出面板。
+     入口是底栏「新手教程 / 随农记」两个按钮（#ai-entry，在 #bottombar 内）。 -->
+<aside id="aihelper" aria-label="新手教程 · 问答手册"></aside>
+
+<!-- ============ 弹层 ============ -->
+<div id="modal" class="modal" hidden>
+  <div class="modal-box">
+    <button class="modal-close" id="modal-close">✕</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- ============ 开局顺序弹窗 ============
+     独立于 #modal：#modal 会被 openModal() 整体覆盖（种田弹层、设置、
+     部落选择都往里塞），顺序窗必须常驻自己的 DOM，否则开新局时会被
+     上一次弹层的残留冲掉。内容由 main.js 的 showOrderGate() 渲染。
+     · #orderstrip 仍然存在，只是搬进了弹窗里 —— iter.test.html R7 段
+       直接查它，删掉会让那条断言炸。 -->
+<div id="ordergate" class="ordergate" hidden role="dialog" aria-modal="true" aria-label="本局行动顺序">
+  <div class="og-box">
+    <h3 class="og-title">本局行动顺序</h3>
+    <p class="og-sub">每局开局随机抽签 —— 从左到右就是这一局的先后手次序。</p>
+    <div class="og-strip" id="orderstrip"></div>
+    <p class="og-note" id="ordernote"></p>
+    <div class="og-actions">
+      <button type="button" id="order-ok" class="btn-primary">知道了，开始</button>
+    </div>
+  </div>
+</div>
+
+<div id="banner" class="banner" hidden>
+  <div class="banner-box">
+    <div id="banner-icon">🏆</div>
+    <h2 id="banner-title"></h2>
+    <p id="banner-sub"></p>
+    <button class="roll" id="banner-btn">再来一局</button>
+  </div>
+</div>
+
+<!-- 背景音乐：进游戏后一直循环播放，音量在「设置」里调（见 main.js 的 BGM 段）。
+     素材是用户给的裸 ADTS AAC，已用 tools/adts_to_m4a.py 无损换壳成标准 M4A。 -->
+<audio id="bgm" src="assets/bgm.m4a" loop preload="auto"></audio>
+
+<div id="loading"><div class="loader"></div><p>正在载入图板…</p></div>
+
+<script>
+window.__errors = [];
+window.addEventListener('error', e => {
+  const loc = (e.filename||'').split('/').pop() + ':' + e.lineno;
+  showErr((e.message||e.error) + ' @ ' + loc);
+});
+window.addEventListener('unhandledrejection', e => {
+  showErr('promise: ' + ((e.reason && e.reason.message) || e.reason));
+});
+function showErr(m){
+  let b=document.getElementById('errbar');
+  if(!b){b=document.createElement('div');b.id='errbar';
+    b.style.cssText='position:fixed;left:0;right:0;top:0;z-index:999;background:#c0392b;color:#fff;font:12px monospace;padding:6px 10px;max-height:130px;overflow:auto';
+    document.body.appendChild(b);}
+  b.textContent='JS 错误: '+m;
+}
+</script>
+<!-- 背景音乐：独立模块，先于游戏加载；只跟「网页有没有打开」有关（见 src/bgm.js） -->
+<script type="module" src="src/bgm.js"></script>
+<!-- 开篇 + 玩法介绍引导层：纯入口层，不碰对局状态（G）与引擎（见 src/intro.js）。
+     必须在 main.js **之前**加载：main.js 一进来就 newGame()，
+     引导层晚于它出现会闪一下。 -->
+<script type="module" src="src/intro.js"></script>
+<script type="module" src="src/main.js"></script>
+<!-- 新手教程「小禾」问答手册：独立模块，放最后；只挂浮层，不动主流程 -->
+<script type="module" src="src/aihelper.js"></script>
+</body>
+</html>

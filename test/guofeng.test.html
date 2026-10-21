@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>国风样式验收</title>
+<style>body{font-family:monospace;padding:14px;background:#111;color:#ddd;font-size:13px}
+pre{white-space:pre-wrap;line-height:1.6}
+iframe{width:1500px;height:900px;border:0;position:absolute;left:-9999px}</style>
+</head>
+<body>
+<pre id="out">running…</pre>
+<iframe id="f" src="/index.html?intro=0"></iframe>
+<script type="module">
+const lines=[];const out=document.getElementById('out');
+const say=s=>{lines.push(s);out.textContent=lines.join('\n');};
+let fails=0;
+const check=(n,c,x='')=>{if(!c)fails++;say(`${c?'PASS':'FAIL'}  ${n}${x?'  → '+x:''}`);};
+
+await new Promise(r=>{let n=0;const t=setInterval(()=>{
+  if(f.contentWindow&&f.contentWindow.__game){clearInterval(t);r();}
+  else if(++n>120){clearInterval(t);r();}},150);});
+const w=f.contentWindow, d=w.document;
+
+say('=== 1. 部落标识数据 ===');
+const G=w.__game.state;
+const MOTIFS=['华表','三星堆面具','琵琶','彩陶骆驼'];
+G.players.forEach((p,i)=>{
+  check(`${p.name} 标识 = ${MOTIFS[i]}`, p.motif===MOTIFS[i], p.motif);
+  check(`${p.name} 有图标`, typeof p.icon==='string' && p.icon.startsWith('data:image/svg+xml'),
+    p.icon? p.icon.slice(0,32)+'…':'无');
+  check(`${p.name} 初始作物存在`, !!p.initialCrop, p.initialCrop);
+});
+
+say('\n=== 2. 标识渲染到 DOM ===');
+const pims=[...d.querySelectorAll('.pcard .pimg')];
+check('玩家面板 4 个标识容器', pims.length===4, `${pims.length}`);
+check('容器均设置了 SVG 背景', pims.every(e=>/svg\+xml/.test(e.style.backgroundImage)),
+  `${pims.filter(e=>/svg/.test(e.style.backgroundImage)).length}/4`);
+const pawns=[...d.querySelectorAll('.pawn')];
+check('棋子 4 个', pawns.length===4, `${pawns.length}`);
+check('棋子均设置了 SVG 背景', pawns.every(e=>/svg\+xml/.test(e.style.backgroundImage)),
+  `${pawns.filter(e=>/svg/.test(e.style.backgroundImage)).length}/4`);
+
+say('\n=== 3. 规则弹层含四部落图例 ===');
+d.getElementById('btn-rules').click();
+await new Promise(r=>setTimeout(r,200));
+const mb=d.getElementById('modal-body').innerHTML;
+check('规则弹层打开', !d.getElementById('modal').hidden);
+check('含 motif-legend 图例区', mb.includes('motif-legend'));
+check('图例含 4 个标识', (mb.match(/motif-box/g)||[]).length>=4,
+  `${(mb.match(/motif-box/g)||[]).length}`);
+MOTIFS.forEach(m=>check(`图例含「${m}」`, mb.includes(m)));
+d.getElementById('modal-close').click();
+
+say('\n=== 4. 国风主题样式已生效 ===');
+const cs=(sel,prop)=>{const e=d.querySelector(sel);return e?getComputedStyle(e)[prop]:'';};
+const bodyBg=cs('body','backgroundImage')||cs('body','background');
+check('页面为宣纸底（渐变纹理）', bodyBg.includes('gradient'), bodyBg.slice(0,42)+'…');
+const h1Font=cs('.brand h1','fontFamily');
+check('标题用楷体（国风）', /Kai|楷/i.test(h1Font), h1Font);
+const rollBg=cs('.roll','backgroundImage');
+check('掷骰按钮为立体渐变', rollBg.includes('gradient'), rollBg.slice(0,42)+'…');
+const boardShadow=cs('#board-wrap::before','boxShadow');
+const sideShadow=cs('#sidepanel','boxShadow');
+check('侧栏有多层立体阴影', sideShadow.split('inset').length>=3, sideShadow.slice(0,52)+'…');
+check('不存在我的世界像素风残留',
+  !bodyBg.includes('pixel') && !bodyBg.includes('image-rendering'),
+  '已清除');
+
+say('\n=== 5. 卡牌与图板贴片（国风 SVG 现画） ===');
+const farmImg=d.querySelector('.farm img');
+check('土地缩略图为国风 SVG 卡面',
+  !farmImg || farmImg.src.startsWith('data:image/svg+xml'),
+  farmImg?farmImg.src.slice(0,34)+'…':'(无农场)');
+const tiles=[...d.querySelectorAll('#cells .cell')];
+check('32 个赛道格均铺国风贴片',
+  tiles.length===32 && tiles.every(c=>(c.style.backgroundImage||'').includes('data:image/svg')),
+  `${tiles.filter(c=>(c.style.backgroundImage||'').includes('data:image/svg')).length}/32`);
+/* 新底图（board_new.jpg）是一张完整地图，中央是青藏高原/山脉，
+   不能再压三块牌位牌。牌位已移到图例上方的三卡入口（#cardhub）。 */
+const slots=[...d.querySelectorAll('#slots .slot')];
+check('新底图中央不再压牌位牌（地图完整可见）',
+  slots.length===0, slots.length+' 块');
+check('牌位信息改由图例上方的三卡入口承载',
+  d.querySelectorAll('#cardhub .hub').length===3,
+  d.querySelectorAll('#cardhub .hub').length+' 个入口');
+const improCards=[...d.querySelectorAll('.hcard img')];
+check('改良卡手牌走 SVG 卡面',
+  improCards.every(i=>i.src.startsWith('data:image/svg+xml')),
+  improCards.length+' 张');
+
+say('\n=== 6. 玩法仍完整 ===');
+const eng=await import('/src/engine.js');
+let err=0;
+try{ for(let i=0;i<15 && !G.over;i++) eng.playTurn(G, eng.aiDecide); }catch(e){err++;say('  异常 '+e.message);}
+check('连跑 15 回合无异常', err===0);
+check('回合推进', G.round>1, `第 ${G.round} 回合`);
+check('有土地被购买', Object.keys(G.landOwners).length>0, `${Object.keys(G.landOwners).length} 块`);
+
+say(`\n=== ${fails===0?'全部通过 ✓':fails+' 项失败 ✗'} ===`);
+document.title=fails===0?'GF-OK':'GF-FAIL-'+fails;
+</script>
+</body></html>

@@ -1,0 +1,622 @@
+/* =========================================================
+   intro.css —— 开篇 + 玩法介绍的样式（PC 版）
+   -------------------------------------------------------------
+   只服务于 index.html 顶部的 #intro 引导层，**游戏本体不受影响**：
+   本文件所有规则都挂在 .intro-layer / .intro-screen / .intro-* 前缀下，
+   没有任何 body / header / h1 之类的全局选择器，
+   所以不会与 style.css 打架（这是本轮踩过的坑：@import style.css
+   会把本来的排版搅乱 —— 标题竖排、按钮挤列）。
+
+   色值直接用 style.css 的同名 CSS 变量（同一套国风底色，
+   因为引导层在同一个文档里，变量天然继承得到）。
+
+   ⚠ 引导层只在「还没看过开篇」时出现（localStorage intro.seen）。
+   已看过 → #intro 直接 display:none，本文件完全不生效。
+   ========================================================= */
+
+/* ---------- 引导层容器：整页覆盖 ---------- */
+.intro-layer{
+  position:fixed; inset:0; z-index:200;
+  overflow-y:auto; overflow-x:hidden;
+  color:var(--ink);
+  font-size:14px; line-height:1.6;
+  background:
+    radial-gradient(1200px 700px at 50% -10%, #fffdf7 0%, rgba(255,253,247,0) 60%),
+    radial-gradient(900px 620px at 6% 30%,  rgba(200,175,120,.16) 0%, rgba(200,175,120,0) 58%),
+    radial-gradient(900px 620px at 96% 72%, rgba(150,175,170,.14) 0%, rgba(150,175,170,0) 58%),
+    repeating-linear-gradient(92deg, rgba(160,140,100,.030) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(2deg,  rgba(160,140,100,.022) 0 1px, transparent 1px 5px),
+    var(--paper);
+}
+/* 已进入游戏 → 整层撤走，不占布局、不吃点击 */
+.intro-layer.gone{ display:none; }
+
+.intro-inner{ min-height:100%; }
+
+/* ---------- 开篇 ---------- */
+.intro-screen{ padding:0; }
+#intro-open{
+  position:relative;
+  max-width:1180px; margin:0 auto;
+  padding:52px 40px 56px;
+  text-align:center;
+}
+/* 背景水墨中国地图（board_map.png，1772×1200 原图），作底纹
+   -------------------------------------------------------------
+   ⚠️ 2026-10-18 调清晰度。之前是 opacity:.17 + 强径向蒙版，
+   结果糊成一团灰影（用户反馈「地图太模糊」）。
+   原图本身分辨率足够（1772px 宽），问题全在这几个参数：
+     · opacity .17 → .42      提亮
+     · saturate(.85) → .9     保留水墨色，别抽干
+     · 径向蒙版 28%→76% 收到 42%→86%   边缘淡出更晚，中间保留更多细节
+   ⚠️ 不用 backdrop-filter：它会连带把地图本身也模糊，越描越糊。
+   淡出靠 mask-image + .intro-mapveil 这层独立的米色纱（不能用 ::after ——
+   底图是 <img>，伪元素不会渲染）。 */
+.intro-mapbg{
+  position:absolute; left:50%; top:22px; transform:translateX(-50%);
+  width:min(1180px,96%); height:auto;
+  /* .40 是「看得清地名、又不会抢文字」的折中：
+     .44 时山峦的深色块会压到标语行上（用户反馈蒙版太淡的实测对照）。
+     再往上就必须把纱加厚，两者是一对，不要单独调一个。 */
+  opacity:.40; filter:saturate(.92);
+  pointer-events:none; user-select:none;
+  -webkit-mask-image:radial-gradient(64% 66% at 50% 42%, #000 44%, rgba(0,0,0,.4) 76%, transparent 88%);
+          mask-image:radial-gradient(64% 66% at 50% 42%, #000 44%, rgba(0,0,0,.4) 76%, transparent 88%);
+}
+/* 米色纱：压住地图的「抢眼」，但比旧版的强遮罩淡得多 ——
+   中间近乎透明（保留细节），只在四周把地图溶进宣纸底色。 */
+.intro-mapveil{
+  position:absolute; left:50%; top:22px; transform:translateX(-50%);
+  width:min(1180px,96%); height:auto;
+  pointer-events:none; user-select:none;
+  background:radial-gradient(58% 60% at 50% 40%,
+              rgba(244,239,227,0) 0%, rgba(244,239,227,.42) 42%, rgba(244,239,227,.80) 80%);
+}
+
+/* 鎏金匾额标题 */
+.intro-plaque{
+  position:relative; display:inline-block;
+  padding:22px 66px 24px;
+  background:linear-gradient(180deg, rgba(255,253,247,.97), rgba(238,229,207,.95));
+  border:2px solid var(--gold-lo);
+  border-radius:14px;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.7) inset,
+    0 0 0 6px rgba(184,137,46,.10),
+    0 10px 30px rgba(80,60,30,.16);
+}
+.intro-plaque::before,
+.intro-plaque::after{
+  content:''; position:absolute; top:50%; width:34px; height:2px;
+  background:linear-gradient(90deg,transparent,var(--gold-lo));
+}
+.intro-plaque::before{ left:-40px; }
+.intro-plaque::after{ right:-40px; background:linear-gradient(270deg,transparent,var(--gold-lo)); }
+
+.intro-plaque h1{
+  margin:0;
+  font-size:50px; font-weight:700; line-height:1.2;
+  letter-spacing:10px; text-indent:10px; /* 补偿字距造成的右侧空隙 */
+  color:var(--ink);
+  text-shadow:0 2px 0 rgba(255,255,255,.8), 0 4px 14px rgba(80,60,30,.16);
+  white-space:nowrap;
+}
+.intro-plaque h1 em{ font-style:normal; color:var(--cinnabar); }
+.intro-sub{
+  margin-top:10px; font-size:13.5px; letter-spacing:5px; text-indent:5px;
+  color:var(--gold-lo); white-space:nowrap;
+}
+/* 印章 */
+.intro-seal{
+  position:absolute; right:-26px; bottom:-20px;
+  width:54px; height:54px; border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:26px; font-weight:700; color:#fff;
+  background:linear-gradient(160deg,#d0574a,var(--cinnabar-lo));
+  box-shadow:0 4px 12px rgba(140,42,32,.40);
+  transform:rotate(-7deg);
+  border:2px solid rgba(255,240,230,.5);
+}
+
+/* 宣纸柔化层：盖在底图之上、所有文字之下。
+   ⚠️ 2026-10-18 两版才对：
+     v1（.86/.74/.52…）把标语区糊成一片白，文字比有底纹时**更**看不清 ——
+        底图和文字是「纹样 vs 字」，中灰衬底反而最清楚，
+        一旦把底纹压到接近底色，对比度没提升，字反而被背景的均匀色吞掉。
+     v2（.52/.34/.20…）：只在最上面一小段托住标题区，
+        往下迅速化开，让标语与部落说明各自靠自身字重/颜色站住。
+   它在 DOM 里是 .intro-mapveil 之后的独立元素（见 index.html）。 */
+.intro-paperwash{
+  position:absolute; left:50%; top:0; transform:translateX(-50%);
+  width:min(1180px,96%); height:100%;
+  pointer-events:none; user-select:none;
+  background:linear-gradient(180deg,
+      rgba(244,239,227,.55) 0%,
+      rgba(244,239,227,.46) 22%,
+      rgba(244,239,227,.22) 40%,
+      rgba(244,239,227,.10) 58%,
+      rgba(244,239,227,.04) 100%);
+}
+
+/* 宣传语三行（2026-10-18：按钮组插到了它上面，
+   所以这里的 margin 比原来的 32px 小一档，让整页节奏不松） */
+.intro-slogans{
+  margin:24px auto 0; max-width:860px;
+  display:flex; flex-direction:column; gap:10px;
+}
+/* 宣传语压在地图上，字色要比常规正文更深一档才够对比。
+   （--ink-2 在米色地图纹样上偏淡，实测「一方水土一方农」那行几乎读不出来） */
+.intro-slogans p{ font-size:15.5px; line-height:1.9; color:#3d3527; letter-spacing:.6px; text-shadow:0 1px 0 rgba(255,253,247,.85); }
+.intro-slogans p b{ color:var(--ink); font-weight:700; }
+.intro-slogans .hs-main{
+  font-size:20px; color:var(--ink); letter-spacing:2px; font-weight:700;
+  text-shadow:0 1px 2px rgba(255,253,247,.95);
+}
+
+/* .intro-modes（封面模式切换）已于 2026-10-18 连同 HTML 一起删除 ——
+   顶栏 #mode-seg 是唯一入口，避免两处各写一份 localStorage。
+   整段样式随之删除；顶栏用的是 style.css 里的 .seg / #mode-seg，不受影响。 */
+
+/* 四部落介绍 */
+.intro-pick{ margin:36px 0 0; }
+.intro-pick-head{ margin-bottom:20px; }
+.intro-pick-head h2{
+  margin:0; font-size:19px; font-weight:700; letter-spacing:6px; color:var(--ink);
+}
+.intro-pick-head p{ margin:7px 0 0; font-size:12.5px; color:var(--ink-3); letter-spacing:.4px; }
+
+.intro-pickgrid{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+.pickcard{
+  position:relative; margin:0;
+  /* cursor:pointer 已移除 —— 卡片不再可选（2026-10-15改为纯展示） */
+  background:linear-gradient(180deg,var(--panel-hi),var(--paper-2));
+  border:1.5px solid var(--line); border-radius:13px;
+  box-shadow:var(--lift);
+  transition:.18s; overflow:hidden;
+}
+.pickcard::before{
+  content:''; position:absolute; left:0; right:0; top:0; height:3px;
+  background:var(--tc); opacity:.75; transition:.18s;
+}
+/* 只保留极轻的悬浮反馈：卡片已经不可点，不能再给「能点」的暗示（不再抬升 + 不换阴影） */
+.pickcard:hover{ transform:translateY(-2px); }
+.intro-pickgrid .pickcard{
+  /* 封面这一组卡片是**纯展示**（2026-10-15 起不再可选）。
+     必须在这里显式写 cursor:default —— style.css 里还有一条 .pickcard{cursor:pointer}，
+     那是给单机模式「选部落」弹层用的，两处共用同一个 class，
+     少了这一句封面上就会显示成可点的手型，玩家一点没反应。 */
+  cursor:default;
+}
+.pickcard .pickpic{
+  height:116px;
+  background-size:contain; background-repeat:no-repeat; background-position:center 56%;
+}
+.pickcard figcaption{
+  padding:11px 13px 13px; border-top:1px dashed var(--line);
+  display:flex; flex-direction:column; gap:5px;
+}
+.pickcard b{ font-size:15.5px; letter-spacing:1.5px; color:var(--ink); }
+.pickcard .pmotif{
+  font-size:11.5px; color:var(--ink-3); letter-spacing:.4px;
+  margin-left:6px; font-weight:400;
+}
+.pickcard .picktrait{ font-size:12px; font-weight:600; color:var(--cinnabar); letter-spacing:.3px; }
+.pickcard .pickdesc{ font-size:11.5px; line-height:1.65; color:var(--ink-2); }
+/* .pickslot / .pickcard.on 已删除 —— 卡片不再有「点选 / ✓ 你当前选择的部落」按钮位 */
+
+/* 开始按钮组（2026-10-18 从页面末尾挪到匾额正下方）
+   ⚠️ 挪上来之后它正好压在地图的华北/江南山峦上（实测截图里
+      「进入田亩」右边缘被地图纹样吃掉一截，ghost 按钮整片糊在山上）。
+      按钮是本页唯一的主要行动，必须在任何底色上都清晰 →
+      给整组加一层**实色**宣纸托底（不是半透明，半透明会把山峦透上来）。 */
+.intro-go{
+  position:relative;
+  margin:22px auto 0; width:fit-content; max-width:100%;
+  /*必须是 flex（块级），不能用 inline-flex：
+     inline-flex 是行内级，会跟在匾额（inline-block）的行内位置后面，
+     结果整组跑到页面右侧（实测 left:663）。 */
+  display:flex; gap:14px; justify-content:center; align-items:center;
+  flex-wrap:wrap;
+  padding:14px 22px; border-radius:16px;
+  background:linear-gradient(180deg,rgba(255,253,247,.97),rgba(243,236,221,.95));
+  border:1px solid rgba(201,180,140,.55);
+  box-shadow:0 4px 16px rgba(80,60,30,.14), 0 0 0 5px rgba(244,239,227,.55);
+}
+.intro-start{
+  font-family:inherit; font-size:17px; font-weight:700; letter-spacing:4px;
+  padding:15px 52px; border:0; border-radius:12px; cursor:pointer; color:#fff;
+  background:linear-gradient(180deg,#cf5044,var(--cinnabar-lo));
+  box-shadow:0 5px 0 #7d241b, 0 12px 22px rgba(140,42,32,.30);
+  transition:.12s;
+}
+.intro-start:hover{ filter:brightness(1.05); }
+.intro-start:active{ transform:translateY(3px); box-shadow:0 2px 0 #7d241b, 0 6px 12px rgba(140,42,32,.28); }
+.intro-ghost{
+  font-family:inherit; font-size:14px; font-weight:600; letter-spacing:2px;
+  padding:13px 30px; cursor:pointer; color:var(--ink);
+  /* 实色（与 kbd 同理）：按钮组现在压在米色地图底纹上，
+     用 --panel-hi 这类半透明色会透出后面的山峦，看起来像「没上色」。 */
+  background:linear-gradient(180deg,#fffdf7,#f0e7d2);
+  border:1px solid var(--line); border-radius:11px;
+  box-shadow:0 3px 0 var(--paper-3), 0 6px 14px rgba(80,60,30,.10);
+  transition:.12s;
+}
+.intro-ghost:hover{ color:var(--ink); filter:brightness(1.02); }
+.intro-ghost:active{ transform:translateY(2px); box-shadow:0 1px 0 var(--paper-3); }
+/* 底部提示条（按钮组上移后，它到了整页最末） */
+.intro-hint{ margin:26px 0 0; font-size:12px; color:var(--ink-3); letter-spacing:.5px; }
+/* ⚠️ kbd 必须用**实色**背景：原来写的是 var(--panel-hi)，
+     那是半透明的（叠在米色地图底纹上会「透出」后面的纹样，
+     看起来像没上色 —— 用户反馈「按键部分还有字，不允许有透明」）。
+     这里给不透明的宣纸白，并加一圈更深的描边让它从底纹上浮出来。 */
+.intro-hint kbd{
+  font-family:inherit; font-size:11.5px; font-weight:600;
+  padding:3px 9px; border-radius:6px;
+  /* 实色，不用 alpha —— rgba/半透明变量都会透出底下的水墨地图 */
+  background:#fffdf7;
+  border:1px solid #c9b48c;
+  box-shadow:0 1px 0 #cbb894, 0 2px 5px rgba(80,60,30,.14) inset;
+  color:var(--ink);
+}
+.intro-scroll-btn{ letter-spacing:1.5px; }
+
+/* ============================================================
+   游戏简介卷轴（2026-10-18）
+   ------------------------------------------------------------
+   点「📜 游戏简介」→ 卷轴横向展开 + 文字淡入上移。
+   层级：z-index 205（压过 .intro-layer 的 200，低于 #ordergate 的 210）——
+   开篇未关时也能开卷轴。
+   ⚠️ 必须写 [hidden]{display:none}：.scroll-layer 自带 display:flex，
+      作者样式会压过 UA 的 [hidden]{display:none}，漏了就成了永远盖在
+      页面上的透明层（项目里已因此栽过一次，见 AGENTS.md §5b）。
+   ============================================================ */
+.scroll-layer{
+  position:fixed; inset:0; z-index:205;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  gap:0;
+}
+.scroll-layer[hidden]{display:none}
+.scroll-dim{
+  position:absolute; inset:0;
+  /* .52 不够：底图现在是 40% 不透明度的清晰地图，
+     .52 的遮罩压不住它，卷轴打开时四周仍然很亮、卷轴不「跳」出来。
+     改成 .68 并加一点点饱和度衰减，卷轴才真正浮起来。 */
+  background:rgba(34,26,14,.68);
+  animation:scrollDimIn .32s ease-out both;
+}
+@keyframes scrollDimIn{ from{opacity:0} to{opacity:1} }
+
+/* 上下两根轴杆：跟着纸一起横向展开 */
+.scroll-rod{
+  position:relative; z-index:2;
+  width:min(720px,92vw); height:20px; flex:none;
+  border-radius:11px;
+  background:linear-gradient(180deg,#c79a4e,#8a5f26 46%,#6d4a1a);
+  box-shadow:0 2px 8px rgba(50,32,10,.42), 0 0 0 1px rgba(255,220,160,.35) inset;
+  transform-origin:50% 50%;
+}
+/* 轴杆两端的小帽 */
+.scroll-rod::before,.scroll-rod::after{
+  content:''; position:absolute; top:50%; width:26px; height:30px;
+  transform:translateY(-50%); border-radius:7px;
+  background:linear-gradient(180deg,#e0b869,#9c6d2c 55%,#75501c);
+  box-shadow:0 2px 6px rgba(50,32,10,.45), 0 0 0 1px rgba(255,225,170,.4) inset;
+}
+.scroll-rod::before{ left:-13px; }
+.scroll-rod::after{ right:-13px; }
+
+.scroll-paper{
+  position:relative; z-index:2;
+  width:min(720px,92vw);
+  padding:26px 44px 34px;
+  background:
+    linear-gradient(180deg,rgba(255,252,244,.985),rgba(248,241,226,.985)),
+    radial-gradient(80% 60% at 50% 0%, rgba(184,137,46,.07), transparent 70%);
+  border-left:1px solid var(--line); border-right:1px solid var(--line);
+  box-shadow:inset 0 0 44px rgba(160,126,60,.14),
+             inset 0 0 0 1px rgba(255,255,255,.55);
+  /* 卷纸的竖向纹理：极淡的重复渐变，纯装饰 */
+  background-image:
+    linear-gradient(180deg,rgba(255,252,244,.985),rgba(248,241,226,.985)),
+    repeating-linear-gradient(90deg, rgba(150,120,70,.045) 0 1px, transparent 1px 7px);
+  transform-origin:50% 0;
+}
+/* 纸的上下暗边，做出「卷起来」的厚度感 */
+.scroll-paper::before,.scroll-paper::after{
+  content:''; position:absolute; left:0; right:0; height:16px; pointer-events:none;
+}
+.scroll-paper::before{ top:0;    background:linear-gradient(180deg,rgba(120,90,40,.22),transparent); }
+.scroll-paper::after { bottom:0; background:linear-gradient(0deg,  rgba(120,90,40,.22),transparent); }
+
+/* ---------- 开卷动画 ---------- */
+/* 收起时：纸沿水平中线压扁（scaleX→0），轴杆同时收回 */
+.scroll-layer.closing .scroll-paper{ animation:scrollClosePaper .34s cubic-bezier(.55,0,.75,0) both; }
+.scroll-layer.closing .scroll-rod-t{ animation:scrollCloseRodT .34s cubic-bezier(.55,0,.75,0) both; }
+.scroll-layer.closing .scroll-rod-b{ animation:scrollCloseRodB .34s cubic-bezier(.55,0,.75,0) both; }
+.scroll-layer.closing .scroll-dim{ animation:scrollDimOut .34s ease-in both; }
+@keyframes scrollOpenRodT{
+  from{ transform:scaleX(0) } to{ transform:scaleX(1) }
+}
+@keyframes scrollOpenPaper{
+  0%  { transform:scaleX(.06) scaleY(.72); opacity:0; filter:brightness(1.25); }
+  38% { transform:scaleX(1)   scaleY(1);   opacity:1; filter:brightness(1.12); }
+  100%{ transform:scaleX(1)   scaleY(1);   opacity:1; filter:brightness(1); }
+}
+@keyframes scrollOpenRodB{
+  0%  { transform:scaleX(0) } 100%{ transform:scaleX(1) }
+}
+/* 文字：卷轴展开到 ~38% 之后才开始淡入上移，读起来像「展卷见字」 */
+@keyframes scrollInkIn{
+  from{ opacity:0; transform:translateY(14px) } to{ opacity:1; transform:translateY(0) }
+}
+@keyframes scrollClosePaper{
+  0%  { transform:scaleX(1)   scaleY(1);   opacity:1 }
+  62% { transform:scaleX(.06) scaleY(.74); opacity:1 }
+  100%{ transform:scaleX(.04) scaleY(.2);  opacity:0 }
+}
+@keyframes scrollCloseRodT{
+  0%{ transform:scaleX(1) } 100%{ transform:scaleX(0) }
+}
+@keyframes scrollCloseRodB{
+  0%{ transform:scaleX(1) } 100%{ transform:scaleX(0) }
+}
+@keyframes scrollDimOut{ from{opacity:1} to{opacity:0} }
+
+/* 打开时给各元素挂一次性动画 */
+.scroll-layer.opening .scroll-dim{ animation:scrollDimIn .3s ease-out both; }
+.scroll-layer.opening .scroll-rod-t{ animation:scrollOpenRodT .34s cubic-bezier(.2,.8,.3,1) both; }
+.scroll-layer.opening .scroll-paper{ animation:scrollOpenPaper .5s cubic-bezier(.2,.8,.25,1) both; }
+.scroll-layer.opening .scroll-rod-b{ animation:scrollOpenRodB .34s .12s cubic-bezier(.2,.8,.3,1) both; }
+.scroll-layer.opening .scroll-title,
+.scroll-layer.opening .scroll-lead,
+.scroll-layer.opening .scroll-body p,
+.scroll-layer.opening .scroll-seal{
+  animation:scrollInkIn .42s .2s ease-out both;
+}
+.scroll-layer.opening .scroll-body p:nth-of-type(2){ animation-delay:.30s; }
+.scroll-layer.opening .scroll-body p:nth-of-type(3){ animation-delay:.38s; }
+.scroll-layer.opening .scroll-seal{ animation-delay:.46s; }
+
+/* ---------- 卷轴内容 ---------- */
+/* 标题居中、✕ 绝对定位到纸的右上角 ——
+   两者若都塞进 .scroll-cap 用 flex 排，✕ 会把「游戏简介」挤偏（实测过）。 */
+.scroll-cap{
+  position:relative;
+  margin-bottom:18px;
+  text-align:center;
+}
+.scroll-title{
+  margin:0; font-size:19px; font-weight:700; letter-spacing:6px; text-indent:6px;
+  color:var(--ink); font-family:"STKaiti","KaiTi","楷体",serif;
+}
+.scroll-x{
+  position:absolute; right:-32px; top:-14px;
+  width:28px; height:28px; border-radius:50%; cursor:pointer;
+  font-family:inherit; font-size:13px; line-height:1;
+  color:var(--ink-2); background:rgba(160,140,100,.14);
+  border:1px solid var(--line); transition:.16s;
+}
+.scroll-x:hover{ color:#fff; background:var(--cinnabar); border-color:var(--cinnabar-lo); }
+.scroll-body{ text-align:center; }
+.scroll-body p{
+  margin:0 auto; max-width:560px;
+  font-size:14px; line-height:2.05; color:var(--ink-2); letter-spacing:.4px;
+}
+.scroll-body p b{ color:var(--cinnabar); font-weight:700; }
+.scroll-lead{ font-size:14.5px !important; color:var(--ink) !important; }
+.scroll-tail{
+  margin-top:16px !important; padding-top:14px;
+  border-top:1px dashed var(--line);
+  font-size:13.5px !important; color:var(--ink-3) !important;
+}
+.scroll-seal{
+  position:absolute; right:26px; bottom:16px;
+  width:46px; height:46px; border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:15px; font-weight:700; letter-spacing:1px; line-height:1.1;
+  color:#fff6ec; font-family:"STKaiti","KaiTi","楷体",serif;
+  background:linear-gradient(160deg,#c4453a,var(--cinnabar-lo));
+  border:1px solid #8e2b22;
+  box-shadow:0 2px 7px rgba(140,42,32,.34), 0 0 0 1px rgba(255,220,200,.3) inset;
+  transform:rotate(-6deg);
+  opacity:.92;
+}
+
+/* 窄屏：卷轴收窄、字号下调、印章挪到正文下方避免压字 */
+@media (max-width:700px){
+  .scroll-paper{ padding:20px 24px 26px; }
+  .scroll-title{ font-size:16px; letter-spacing:4px; }
+  .scroll-body p{ font-size:12.5px; line-height:1.95; }
+  .scroll-lead{ font-size:13.5px !important; }
+  .scroll-tail{ font-size:12.5px !important; }
+  .scroll-seal{ position:static; margin:16px auto 0; width:38px; height:38px; font-size:13px; }
+  .scroll-rod{ height:16px; }
+  /* 窄屏纸窄，✕ 不能挂在 -32px 的纸外侧（会跑出视口点不到），回到行内 */
+  .scroll-x{ position:static; margin-left:12px; vertical-align:middle; }
+}
+
+/* 尊重系统的「减少动态效果」设置 */
+@media (prefers-reduced-motion:reduce){
+  .scroll-layer *{ animation-duration:.01ms !important; animation-iteration-count:1 !important; }
+}
+
+/* ---------- 介绍页：顶部导航 ---------- */
+.intro-nav{
+  position:sticky; top:0; z-index:40;
+  display:flex; align-items:center; gap:18px;
+  padding:11px 30px;
+  background:linear-gradient(180deg,rgba(251,248,240,.97),rgba(236,229,213,.93));
+  border-bottom:1px solid var(--line);
+  box-shadow:0 2px 10px rgba(80,60,30,.07);
+}
+.hn-brand{
+  display:flex; align-items:center; gap:9px;
+  font-size:16px; font-weight:700; letter-spacing:3px; color:var(--ink);
+  white-space:nowrap;
+}
+.hn-brand i{
+  width:30px; height:30px; flex:none; border-radius:7px;
+  display:flex; align-items:center; justify-content:center;
+  font-style:normal; font-size:17px;
+  background:linear-gradient(160deg,var(--gold-hi),var(--gold));
+  box-shadow:0 2px 6px rgba(120,90,20,.30), 0 1px 0 rgba(255,255,255,.5) inset;
+}
+.hn-links{ margin-left:auto; display:flex; gap:8px; align-items:center; }
+.hn-links button{
+  font-family:inherit; font-size:13px; letter-spacing:.5px;
+  padding:6px 14px; border-radius:20px; cursor:pointer;
+  color:var(--ink-2); background:transparent;
+  border:1px solid transparent; white-space:nowrap; transition:.16s;
+}
+.hn-links button:hover{ color:var(--ink); background:rgba(255,253,247,.9); border-color:var(--line); }
+.hn-links button.hn-cta{
+  color:#fff; font-weight:600; letter-spacing:2px;
+  background:linear-gradient(180deg,#c4453a,var(--cinnabar-lo));
+  border-color:var(--cinnabar-lo);
+  box-shadow:0 2px 6px rgba(140,42,32,.32), 0 1px 0 rgba(255,255,255,.25) inset;
+}
+.hn-links button.hn-cta:hover{ filter:brightness(1.06); }
+
+/* ---------- 介绍页：正文 ---------- */
+.intro-doc-body{ max-width:1180px; margin:0 auto; padding:0 40px 20px; }
+
+.sec-tag{ display:flex; align-items:center; gap:14px; margin:56px 0 20px; }
+.sec-tag::before,.sec-tag::after{
+  content:''; height:1px; flex:1;
+  background:linear-gradient(90deg,transparent,var(--line),transparent);
+}
+.sec-tag h2{
+  flex:none; text-align:center; margin:0;
+  font-size:20px; font-weight:700; letter-spacing:6px; color:var(--ink);
+}
+.sec-tag h2 small{
+  display:block; font-size:11.5px; font-weight:400; letter-spacing:2px;
+  color:var(--gold-lo); margin-top:5px;
+}
+
+.intro-card{
+  background:linear-gradient(180deg,var(--panel-hi),var(--paper-2));
+  border:1px solid var(--line); border-radius:14px;
+  box-shadow:var(--lift); padding:26px 30px;
+}
+.intro-card h3{
+  margin:0 0 7px; font-size:16px; font-weight:700; letter-spacing:3px; color:var(--ink);
+  display:flex; align-items:center; gap:10px;
+}
+.intro-card h3 .ic{
+  width:30px; height:30px; flex:none; border-radius:8px;
+  display:flex; align-items:center; justify-content:center; font-size:16px;
+  background:rgba(184,137,46,.14); border:1px solid rgba(184,137,46,.30);
+}
+.intro-card > p.lead{ margin:0 0 16px; font-size:13px; color:var(--ink-3); line-height:1.8; }
+
+.kitgrid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+.kit{
+  text-align:center; padding:16px 10px 14px; border-radius:11px;
+  background:linear-gradient(180deg,#fffdf7,var(--paper));
+  border:1px solid var(--line);
+}
+.kit b{ display:block; font-size:26px; color:var(--gold-lo); line-height:1.2; }
+.kit span{ display:block; margin-top:5px; font-size:12px; color:var(--ink-2); }
+.kit i{ display:block; font-style:normal; font-size:10.5px; color:var(--ink-3); margin-top:3px; }
+
+.flowgrid{ display:grid; grid-template-columns:repeat(5,1fr); gap:12px; }
+.flowstep{
+  position:relative; padding:16px 14px 15px; border-radius:12px;
+  background:linear-gradient(180deg,var(--panel-hi),var(--paper-2));
+  border:1px solid var(--line); box-shadow:0 2px 6px rgba(80,60,30,.07);
+}
+.flowstep .no{
+  position:absolute; left:12px; top:10px;
+  width:22px; height:22px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-size:11.5px; font-weight:700; color:#fff;
+  background:linear-gradient(160deg,var(--gold-hi),var(--gold-lo));
+}
+.flowstep h4{ margin:18px 0 6px; font-size:13.5px; font-weight:700; letter-spacing:1px; color:var(--ink); }
+.flowstep p{ margin:0; font-size:11.5px; line-height:1.7; color:var(--ink-2); }
+.flowstep .arrow{
+  position:absolute; right:-11px; top:50%; transform:translateY(-50%);
+  z-index:2; font-size:15px; color:var(--gold); opacity:.75;
+}
+.flowstep:last-child .arrow{ display:none; }
+
+.stagrid{ display:grid; grid-template-columns:repeat(5,1fr); gap:13px; }
+.sta{
+  padding:18px 14px 16px; border-radius:12px; text-align:center;
+  background:linear-gradient(180deg,var(--panel-hi),var(--paper-2));
+  border:1px solid var(--line); border-top:3px solid var(--sc);
+  box-shadow:var(--lift);
+}
+.sta .ic{
+  width:52px; height:52px; margin:0 auto 9px; border-radius:11px;
+  display:flex; align-items:center; justify-content:center; font-size:25px;
+  background:var(--sc-soft); border:1px solid var(--sc-line);
+}
+.sta h4{ margin:0 0 6px; font-size:14px; font-weight:700; letter-spacing:1.5px; color:var(--ink); }
+.sta p{ margin:0; font-size:11.5px; line-height:1.7; color:var(--ink-2); }
+
+.endgrid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.endcard{
+  padding:22px 24px; border-radius:13px;
+  background:linear-gradient(180deg,var(--panel-hi),var(--paper-2));
+  border:1px solid var(--line); box-shadow:var(--lift);
+}
+.endcard.win{ border-left:4px solid var(--gold); }
+.endcard.lose{ border-left:4px solid var(--cinnabar); }
+.endcard h3{ margin:0 0 9px; font-size:15.5px; font-weight:700; letter-spacing:2px; color:var(--ink); }
+.endcard p{ margin:0; font-size:12.5px; line-height:1.85; color:var(--ink-2); }
+.endcard b{ color:var(--cinnabar); font-weight:700; }
+.endcard.win b{ color:var(--gold-lo); }
+
+.entrygrid{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+.entry{
+  display:flex; gap:13px; align-items:flex-start;
+  padding:16px 17px; border-radius:12px;
+  background:linear-gradient(180deg,var(--panel-hi),var(--paper-2));
+  border:1px solid var(--line); box-shadow:0 2px 6px rgba(80,60,30,.07);
+  transition:.16s;
+}
+.entry:hover{ transform:translateY(-2px); box-shadow:0 8px 20px rgba(80,60,30,.13); }
+.entry .ei{
+  width:38px; height:38px; flex:none; border-radius:10px;
+  display:flex; align-items:center; justify-content:center; font-size:19px;
+  background:linear-gradient(160deg,rgba(184,137,46,.20),rgba(184,137,46,.08));
+  border:1px solid rgba(184,137,46,.34);
+}
+.entry h4{ margin:0 0 4px; font-size:13.5px; font-weight:700; letter-spacing:1px; color:var(--ink); }
+.entry p{ margin:0; font-size:11.5px; line-height:1.65; color:var(--ink-2); }
+
+/* 介绍页页脚 */
+.intro-foot{
+  display:flex; gap:16px; justify-content:center; align-items:center;
+  padding:26px 30px 46px;
+  border-top:1px solid var(--line); margin-top:52px;
+}
+
+/* ---------- 响应式兜底 ---------- */
+@media (max-width:1180px){
+  .intro-pickgrid,.stagrid{ grid-template-columns:repeat(2,1fr); }
+  .kitgrid,.flowgrid{ grid-template-columns:repeat(2,1fr); }
+  .flowstep .arrow{ display:none; }
+  .entrygrid,.endgrid{ grid-template-columns:1fr; }
+  .intro-plaque h1{ font-size:38px; letter-spacing:8px; text-indent:8px; }
+  #intro-open{ padding:34px 22px 40px; }
+  .intro-doc-body{ padding-left:22px; padding-right:22px; }
+}
+@media (max-width:700px){
+  .intro-pickgrid,.kitgrid,.flowgrid,.stagrid{ grid-template-columns:1fr; }
+  .intro-plaque{ padding:16px 28px 18px; }
+  .intro-plaque h1{ font-size:28px; letter-spacing:5px; text-indent:5px; }
+  .intro-sub{ font-size:11px; letter-spacing:2px; }
+  .intro-seal{ width:44px; height:44px; font-size:21px; right:-10px; bottom:-14px; }
+  .intro-slogans .hs-main{ font-size:16px; }
+  /* 按钮组在窄屏下换行（.intro-go 已有 flex-wrap），这里把主按钮撑满一行 */
+  .intro-go{ gap:10px; }
+  .intro-start{ flex:1 1 100%; padding:14px 30px; font-size:16px; letter-spacing:3px; }
+  .intro-ghost{ flex:1 1 calc(50% - 5px); padding:11px 14px; font-size:13px; letter-spacing:1px; }
+  .intro-nav{ padding:9px 14px; gap:10px; }
+  .hn-brand{ font-size:14px; letter-spacing:1px; }
+  .hn-links button{ padding:5px 9px; font-size:12px; }
+}

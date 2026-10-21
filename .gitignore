@@ -1,0 +1,43 @@
+# 忽略
+.DS_Store
+Thumbs.db
+desktop.ini
+*.lnk
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+
+# 本地私有
+*.log
+.env
+.env.local
+
+# 出图/标定的临时中间产物（可由 tools/ 脚本重新生成）
+assets/_*.png
+assets/_*.json
+assets/_*.npy
+assets/_*.txt
+assets/*.npy
+assets/map_*.png
+assets/dem_china_raw.*
+tools/_tile_cache/
+tools/_*.png
+
+# 验收截图（体积大，不入库；少量代表图放 docs/screenshots/）
+shots/
+*.shot.png
+
+# 参赛材料中含身份证号/手机号的文件，绝不入库
+参赛材料/_不公开_含身份证号/

@@ -1,0 +1,1942 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>UI 流程验收</title>
+<style>
+body{font-family:monospace;padding:16px;background:#111;color:#ddd;font-size:13px}
+pre{white-space:pre-wrap;line-height:1.6}
+iframe{width:1500px;height:900px;border:0;position:absolute;left:-9999px}
+</style>
+</head>
+<body>
+<pre id="out">running…</pre>
+<iframe id="f" src="/index.html?intro=0"></iframe>
+<script type="module">
+/* 顶层 await 的 IIFE 里，任何未捕获异常都会静默吞掉后面所有断言，
+   表现为「某个章节标题打印了但一条 PASS 都没有」。挂两个捕获把原因打出来。 */
+const lines=[];const out=document.getElementById('out');
+const say=s=>{lines.push(s);out.textContent=lines.join('\n');};
+let fails=0;
+const check=(n,c,x='')=>{if(!c)fails++;say(`${c?'PASS':'FAIL'}  ${n}${x?'  → '+x:''}`);};
+
+await new Promise(r=>{
+  let n=0;
+  const t=setInterval(()=>{
+    const w=f.contentWindow;
+    if(w && w.__game && w.__game.state){clearInterval(t);r();}
+    else if(++n>120){clearInterval(t);r();}
+  },150);
+});
+
+const w=f.contentWindow;
+/* d 是 iframe 里的 document —— 全文件 40+ 处断言都用 d.xxx，
+   这个简写必须留着。（曾被一次批量替换误删，导致后面章节全部抛
+   "d is not defined" 而静默中断，只表现为「章节标题有、一条 PASS 没有」。）*/
+const d=w.document;
+/* 测试隔离：真人座位存在 localStorage（SEAT_KEY）。第30节会 setSeat(2) 且不还原，
+   于是**重跑**时第10节拿到的默认座位不是 0，`!isAI(0)` 直接判成 false，
+   连带「电脑追风」「交回真人」一起失败（都不是产品问题，是脏状态）。
+   这里在跑任何断言前统一重置成默认：本地对战 + 真人座位 0。 */
+w.localStorage.removeItem('cnvillage.seat.v1');
+w.localStorage.setItem('cnvillage.mode.v1','local');
+w.__game.setSeat(0);
+w.__game.setMode('local');
+/* 胜利线也存在 localStorage（上一轮 §8 可能把值改成 500 且不还原），
+   重跑时 iframe 会在加载时就把它读进来。这里统一归位成默认 260，
+   否则 §8 的「默认值 = 260」断言会误红。 */
+w.__game.debug.setWinMoney(260);
+/* 电脑调成快速模式：新规则下单机开局可能电脑先手（本局抽签顺序第一位），
+   电脑默认一步停 3 秒，会让 §25/§29/§30 里「等真人回合」的用例空等几十秒。 */
+w.__game.debug.setFastMode(true);
+/* 收集 iframe 里的运行时异常：顶层 await 的模块里，异步回调（点击处理器、
+   async 回合流程）抛出的异常不会冒泡到这里，只会静默把流程卡住。 */
+const rtErrs=[];
+w.addEventListener('error', e=>rtErrs.push('error: '+(e.message||e)));
+w.addEventListener('unhandledrejection', e=>rtErrs.push('reject: '+((e.reason&&e.reason.message)||e.reason)));
+if(!w.__game){ say('FAIL 页面未初始化 __game'); process(); }
+const G=w.__game.state;
+
+/* 固定以「本地对战」开局：模式存在 localStorage，上一轮跑完可能是 solo，
+   会让面板主人（viewSeat）随机漂移，断言时有时无。
+   ⚠️ 只切模式、不要 newGame —— newGame 会换掉 G，
+   而下面 §3 等断言引用的都是这里最初捕获的 G。 */
+w.__game.setMode('local');
+/* 面板展示给谁 / 当前行动者是谁 —— 测试里取玩家一律走这两个，别用 G.turn */
+const viewSeat=()=>w.__game.debug.viewSeat();
+const panelP=()=>w.__game.state.players[viewSeat()];
+
+/* 等「轮到某个真人座位」。
+   新规则：单机模式开局不再强制真人先手 —— 本局抽签顺序第一位是谁就谁先行动
+   （第一位是电脑就电脑先走）。所以下面几节凡是要「真人回合」的状态，
+   **必须轮询等**，不能再用固定 setTimeout（之前人总是先手才碰巧能过）。
+   先把电脑调成快速模式，一步从 3 秒压到 0.6 秒，避免无头虚拟时间下空等太久。 */
+const waitHumanTurn = async (seat, tries = 350) => {
+  for (let i = 0; i < tries; i++) {
+    const s = w.__game.state;
+    if (!w.__game.busy && s.order[s.turn] === seat && !w.__game.isAI(seat)) return true;
+    await new Promise(r => setTimeout(r, 200));
+  }
+  return false;
+};
+
+say('=== 1. 初始渲染 ===');
+check('赛道格 DOM 数量 = 32', document.querySelectorAll('#cells .cell').length===32||w.document.querySelectorAll('#cells .cell').length===32,
+  w.document.querySelectorAll('#cells .cell').length+' 个');
+check('玩家卡片 4 个', w.document.querySelectorAll('.pcard').length===4);
+check('棋子 4 个', w.document.querySelectorAll('.pawn').length===4);
+check('图板图片已加载', w.document.getElementById('board').naturalWidth>0,
+  w.document.getElementById('board').naturalWidth+'px');
+
+say('\n=== 2. 格子位置落在原图轨道上 ===');
+const cells=[...w.document.querySelectorAll('.cell')];
+const xs=cells.map(c=>parseFloat(c.style.left));
+const ys=cells.map(c=>parseFloat(c.style.top));
+check('全部格子有坐标', cells.every(c=>c.style.left&&c.style.top));
+// 实测赛道环距边缘 7.7%~9.7%（PDF 图板外框较宽），阈值取 12%
+check('格子分布在外圈（矩形贴边）',
+  cells.every(c=>{
+    const x0=parseFloat(c.style.left)/100, y0=parseFloat(c.style.top)/100;
+    const x1=x0+parseFloat(c.style.width||'0')/100, y1=y0+parseFloat(c.style.height||'0')/100;
+    return x0<0.17||x1>0.83||y0<0.20||y1>0.80;}),
+  `x ${Math.min(...xs).toFixed(1)}~${Math.max(...xs).toFixed(1)}% / y ${Math.min(...ys).toFixed(1)}~${Math.max(...ys).toFixed(1)}%`);
+check('格子为百分比锚定（0-100）', cells.every(c=>{
+  const x=parseFloat(c.style.left),y=parseFloat(c.style.top);
+  return x>=0&&x<=100&&y>=0&&y<=100;}),
+  `${cells[0]?cells[0].style.left:'—'} / ${cells[0]?cells[0].style.top:'—'}`);
+check('图板底图已按可用空间缩放',
+  (()=>{const b=w.document.getElementById('board-wrap');
+    return parseFloat(b.style.width)>100&&parseFloat(b.style.height)>100;})(),
+  (()=>{const b=w.document.getElementById('board-wrap');
+    return b.style.width+' × '+b.style.height;})());
+
+say('\n=== 3. 掷骰流程（连跑 20 回合 + 种子路径采样）===');
+// 无头环境 setTimeout 被虚拟时间压缩，busy 锁来不及释放，
+// 改为直接驱动引擎逻辑（UI 侧交互在下方单独验证）
+let err=0;
+const eng = await import('/src/engine.js');
+const g2 = w.__game.state;
+try{
+  for(let i=0;i<20 && !g2.over;i++){
+    eng.playTurn(g2, eng.aiDecide);
+    w.__game.newGame && null;
+  }
+}catch(e){err++; say('   异常: '+e.message);}
+check('20 次掷骰无异常', err===0, `${err} 次错误`);
+check('回合已推进', G.round>1, `第 ${G.round} 回合`);
+check('有土地被购买', Object.keys(G.landOwners).length>0,
+  `${Object.keys(G.landOwners).length} 块`);
+/* 种子闭环由 §11（集市买卡真扣钱）与 §28（没有种子不能种）直接覆盖。
+   这里只确认「随机走位的引擎能把作物种下去」这条路径可达 ——
+   新规则「只能站在脚下的地种植」（见 §28）让「20 回合内必有一次种植」
+   不再成立（实测约 16% 的整局一次都没种上），所以改成多局采样兜底。 */
+let sawPlant = g2.log.some(l => l.msg.includes('种下'));
+let sampleGames = 0;
+for (let gi = 0; gi < 8 && !sawPlant; gi++) {
+  sampleGames++;
+  const stSample = eng.initGame(4);
+  for (let i = 0; i < 200 && !stSample.over; i++) eng.playTurn(stSample, eng.aiDecide);
+  if (stSample.log.some(l => l.msg.includes('种下'))) sawPlant = true;
+}
+check('随机走位下引擎能种下作物（种子流程通畅）', sawPlant,
+  `首局 ${g2.log.filter(l=>l.msg.includes('种下')).length} 次种植 / 追加采样 ${sampleGames} 局`);
+// 上面绕过了 UI 直接调引擎，DOM 日志不会增长；改验引擎日志
+check('引擎日志有内容', G.log.length>5, G.log.length+' 条');
+check('DOM 日志已渲染', w.document.querySelectorAll('.log .li').length>0,
+  w.document.querySelectorAll('.log .li').length+' 条');
+// 顺便验证 UI 掷骰按钮本身可用（只验证不重复）
+const btn=w.document.getElementById('btn-roll');
+check('掷骰按钮存在且类型正确', !!btn && btn.tagName==='BUTTON');
+
+say('\n=== 4. 弹层交互 ===');
+w.document.getElementById('btn-rules').click();
+await new Promise(r=>setTimeout(r,120));
+check('规则弹层打开', !w.document.getElementById('modal').hidden);
+/* 2026-10-18：规则里的「⚠ 课程要解决的 4 个科学性 BUG」整段已按需求删除，
+   这里改成断言「已删除」—— 锁住这个决定，别被谁又加回来。 */
+check('规则内容已不含 4 个 BUG 段（2026-10-18 删除）',
+  !w.document.getElementById('modal-body').innerHTML.includes('BUG'),
+  w.document.getElementById('modal-body').innerHTML.includes('BUG')
+    ? '仍含 BUG 字样' : '已移除');
+check('规则核心机制仍在', /土地购买/.test(w.document.getElementById('modal-body').innerHTML)
+  && /过路费/.test(w.document.getElementById('modal-body').innerHTML));
+w.document.getElementById('modal-close').click();
+await new Promise(r=>setTimeout(r,120));
+check('规则弹层关闭', w.document.getElementById('modal').hidden);
+
+say('\n=== 5. 点格子看详情 ===');
+const landCell=cells.find(c=>/东北黑土|南方红壤|云贵黄壤|四川紫色土|江南水稻土|山东棕壤|黄绵土|荒漠土|西北沙土|海南砖红壤|青藏草甸土/.test(c.textContent));
+check('存在土地格', !!landCell, landCell?landCell.textContent.trim().slice(0,20):'—');
+landCell.click();
+await new Promise(r=>setTimeout(r,150));
+const mb=w.document.getElementById('modal-body').innerHTML;
+check('土地详情弹层打开', !w.document.getElementById('modal').hidden);
+check('详情含卡面图（SVG 现画）', mb.includes('data:image/svg+xml'), '弹层含内联卡面');
+check('详情含作物收益表', mb.includes('净收益'));
+w.document.getElementById('modal-close').click();
+
+say('\n=== 6. 素材完整性 ===');
+const imgs=[...w.document.querySelectorAll('img')];
+const broken=imgs.filter(i=>i.complete && i.naturalWidth===0).map(i=>i.src);
+check('无破图', broken.length===0, broken.slice(0,3).join(', '));
+check('图板图加载正常', imgs.some(i=>i.naturalWidth>0),
+  `${imgs.filter(i=>i.naturalWidth>0).length}/${imgs.length}`);
+// 直接校验全部素材 URL 可访问
+const urls=[
+ 'assets/board_map.png',
+ 'assets/cards/land_heilitu.png','assets/cards/land_nanfang.png',
+ 'assets/cards/crop_malingshu.png','assets/cards/crop_chashu.png',
+ 'assets/cards/imp_dimo.png','assets/cards/imp_nongyao.png',
+ 'assets/ui/tribe_A.png','assets/ui/station_nongji.png'
+];
+const chk=await Promise.all(urls.map(u=>new Promise(res=>{
+  const im=new Image();
+  im.onload=()=>res(true); im.onerror=()=>res(false);
+  im.src='/'+u;
+})));
+check('全部关键素材可访问', chk.every(Boolean),
+  `${chk.filter(Boolean).length}/${urls.length}`);
+
+say('\n=== 7. 新游戏重置 ===');
+w.__game.newGame();
+await new Promise(r=>setTimeout(r,200));
+check('重置后回合=1', w.__game.state.round===1);
+check('重置后资金复原',
+  w.__game.state.players.every(p=>p.money>=150));
+check('重置后无土地', Object.keys(w.__game.state.landOwners).length===0);
+
+say('\n=== 8. 对局设置与部落特长 ===');
+w.document.getElementById('btn-settings').click();
+await new Promise(r=>setTimeout(r,180));
+check('设置弹层打开', !w.document.getElementById('modal').hidden);
+const setInputs=[...w.document.querySelectorAll('#setlist input')];
+check('4 个部落金额输入框', setInputs.length===4, setInputs.map(i=>i.value).join('/'));
+const setHtml=w.document.getElementById('modal-body').innerHTML;
+check('含四条部落特长', ['沃野中原','稻作之源','追风千里','丝路商队'].every(s=>setHtml.includes(s)));
+// 背景音乐：元素在 + 循环 + 设置里有滑块、即时生效、持久化
+const bgmEl=w.document.getElementById('bgm');
+check('背景音乐元素存在且循环播放',
+  !!bgmEl && bgmEl.loop===true && /bgm\.m4a/.test(bgmEl.getAttribute('src')||''),
+  bgmEl ? (bgmEl.getAttribute('src')+' loop='+bgmEl.loop) : '无');
+const volEl=w.document.getElementById('bgm-vol');
+check('设置里有音量滑块', !!volEl && volEl.type==='range');
+volEl.value='30';
+volEl.dispatchEvent(new w.Event('input',{bubbles:true}));
+await new Promise(r=>setTimeout(r,60));
+check('拖滑块即时改音量', Math.abs(w.__game.debug.bgmEl.volume-0.3)<0.001,
+  'volume='+w.__game.debug.bgmEl.volume);
+check('音量百分比显示同步', w.document.getElementById('bgm-vol-txt').textContent==='30%',
+  w.document.getElementById('bgm-vol-txt').textContent);
+check('音量持久化到 localStorage',
+  (w.localStorage.getItem('cnvillage.bgm.v2')||'').includes('0.3'),
+  w.localStorage.getItem('cnvillage.bgm.v2')||'—');
+// 0 音量必须「真静音」：只设 volume=0 在个别环境仍出音，所以 muted + pause 双保险
+volEl.value='0';
+volEl.dispatchEvent(new w.Event('input',{bubbles:true}));
+await new Promise(r=>setTimeout(r,60));
+const bg=w.__game.debug.bgmEl;
+check('0 音量时真静音（muted + 暂停）',
+  bg.muted===true && bg.volume===0 && bg.paused===true,
+  `muted=${bg.muted} vol=${bg.volume} paused=${bg.paused}`);
+check('0 音量时百分比显示 0%',
+  w.document.getElementById('bgm-vol-txt').textContent==='0%',
+  w.document.getElementById('bgm-vol-txt').textContent);
+// 改 A 部落金额并应用（顺带设胜利线=500，一次「保存并重开」同时验证两项）
+setInputs[0].value='210';
+const winEl=w.document.getElementById('win-money');
+check('设置里有胜利线输入框', !!winEl && winEl.type==='number',
+  winEl ? ('value='+winEl.value) : '无');
+check('胜利线默认值 = 260', !!winEl && Number(winEl.value)===260, winEl?winEl.value:'—');
+w.document.getElementById('win-money').value='500';
+w.document.getElementById('set-apply').click();
+await new Promise(r=>setTimeout(r,450));
+check('自定义金额生效', w.__game.state.players[0].money===210,
+  'A = '+w.__game.state.players[0].money);
+check('金额已持久化到 localStorage',
+  (w.localStorage.getItem('cnvillage.startmoney.v1')||'').includes('210'),
+  w.localStorage.getItem('cnvillage.startmoney.v1')||'—');
+// 胜利线：设置弹层里可调「达到多少肥力币获胜」，保存后写入 RULES.winMoney + 持久化
+check('自定义胜利线生效（RULES.winMoney）', w.__game.RULES.winMoney===500,
+  'winMoney='+w.__game.RULES.winMoney);
+check('胜利线同步到顶栏显示', w.document.getElementById('winline').textContent==='500',
+  w.document.getElementById('winline').textContent);
+check('胜利线持久化到 localStorage',
+  (w.localStorage.getItem('cnvillage.winmoney.v1')||'')==='500',
+  w.localStorage.getItem('cnvillage.winmoney.v1')||'—');
+// 还原为默认 260（走调试入口，不再多开一局，避免影响后续时序）
+w.__game.debug.setWinMoney(260);
+check('胜利线可还原为默认 260', w.__game.RULES.winMoney===260,
+  'winMoney='+w.__game.RULES.winMoney);
+const traits=[...w.document.querySelectorAll('.pcard .ptrait')];
+check('部落卡片显示特长标签', traits.length===4, traits.map(t=>t.textContent).join(' / '));
+// 引擎带上了特长对象
+const gtr=w.__game.state.players.map(p=>p.trait&&p.trait.name).join('/');
+check('玩家对象挂上特长', gtr==='沃野中原/稻作之源/追风千里/丝路商队', gtr);
+
+say('\n=== 9. 选种弹窗把加成算进收益 ===');
+w.__game.newGame();
+await new Promise(r=>setTimeout(r,300));
+const dataMod = await import('/src/data.js');
+const sd = dataMod.TRACK.findIndex(c=>c.kind==='land' && c.soilId==='shandong');
+if (sd >= 0) {
+  w.__game.debug.giveLand(0, sd);          // A 部落（沃野中原）拿一块山东棕壤
+  await new Promise(r=>setTimeout(r,200));
+  w.__game.debug.setActor(0);              // 面板主人 = A 部落（本地对战：viewSeat=curSeat）
+  w.__game.state.players[0].pos = sd;      // 新规则：只能给「脚下」的地种植
+  w.__game.debug.openPlantModal(sd);
+  await new Promise(r=>setTimeout(r,220));
+  const pm = w.document.getElementById('modal-body').innerHTML;
+  const nBonus = (pm.match(/cc-bonus/g)||[]).length;
+  check('加成标签已渲染', nBonus>0 && pm.includes('沃野中原'),
+    `${nBonus} 个标签`);
+  // 实际种下去再收获，账要对得上
+  const st2 = w.__game.state;
+  const p0 = st2.players[0];
+  p0.money = 9999;
+  p0.seeds = { yumi: 5 };          // 新规则：必须持有种子才能种
+  const eng3 = await import('/src/engine.js');
+  const rPlant = eng3.plant(st2, p0, sd, 'yumi');
+  check('有种子时可以种下', rPlant.ok, rPlant.msg || '');
+  check('种植消耗了一张种子', p0.seeds.yumi === 4, 'yumi=' + p0.seeds.yumi);
+  const r3 = eng3.harvest(st2, p0, sd);
+  check('结算含加成（100 → 190 量级）', r3.ok && r3.total > r3.raw,
+    `原 ${r3.raw} → 实得 ${r3.total}`);
+  w.document.getElementById('modal-close').click();
+} else {
+  check('赛道上有山东棕壤可供测试', false, '未找到');
+}
+
+say('\n=== 10. 单机模式 · 电脑追风 ===');
+w.localStorage.setItem('cnvillage.mode.v1','solo');
+w.__game.setMode('solo');
+w.__game.newGame();
+await new Promise(r=>setTimeout(r,400));
+/* Bug1 修复后，开局可能直接就是电脑先手（order 第一位是电脑）——
+   先等这条链跑完、操作权交回真人，再手动把回合交给座位 2，断言才可控。 */
+for (let i = 0; i < 200 && w.__game.busy; i++) await new Promise(r=>setTimeout(r,200));
+check('单机模式生效（B/C/D 为电脑）',
+  w.__game.mode==='solo' && !w.__game.isAI(0) && w.__game.isAI(1) && w.__game.isAI(2),
+  `mode=${w.__game.mode}`);
+// 把回合交给「丝绸部落」（座位 2，特长=追风千里；单机下它是电脑），看它会不会追风。
+// ⚠️ turn 是行动次序不是座位 —— 必须先在 order 里定位座位 2。
+const gs = w.__game.state;
+const turn0 = gs.turn;
+gs.turn = gs.order.indexOf(2);
+w.__game.debug.runAiTurn();
+// 等电脑都走完、交回真人：当前行动者所在座位不再是电脑
+let guardAi = 0;
+while (w.__game.isAI(gs.order[gs.turn]) && !gs.over && guardAi++ < 900) {
+  await new Promise(r=>setTimeout(r, 300));
+}
+const msgs = gs.log.map(l=>l.msg);
+const zf = msgs.find(m=>m.includes('追风再投'));
+check('电脑执行了追风再投', !!zf, zf ? zf.slice(0,44) : '未见追风日志');
+// turn 会绕圈回到同一个下标，用「回合数变大」判断推进不可靠；
+// 真正该验的是「电脑走完了、操作权交回真人」。
+check('电脑回合完整走完（交回真人）',
+  !w.__game.isAI(gs.order[gs.turn]) && gs.order[gs.turn] === 0,
+  `turn=${gs.turn} actor=${gs.order[gs.turn]} round=${gs.round}`);
+// 节奏：单独测「恰好一个电脑回合」的耗时。
+// 从座位 2 起步时，行动顺序决定这一段链上有 1~3 个电脑（随机），
+// 拿整段耗时卡阈值必然抖动。这里取 order 里紧挨真人(座位0)前一位的电脑座位，
+// 电脑只走一次就交回真人，步数才可比。
+w.__game.newGame();
+await new Promise(r=>setTimeout(r,300));
+for (let i = 0; i < 200 && w.__game.busy; i++) await new Promise(r=>setTimeout(r,200));   // 同上
+const gp = w.__game.state;
+const hi = gp.order.indexOf(0);
+gp.turn = (hi - 1 + gp.order.length) % gp.order.length;
+const tPace = Date.now();
+w.__game.debug.runAiTurn();
+let guardP = 0;
+while (w.__game.isAI(gp.order[gp.turn]) && !gp.over && guardP++ < 900) {
+  await new Promise(r=>setTimeout(r, 200));
+}
+const paceMs = Date.now() - tPace;
+const perSteps = paceMs / 3000;
+check('电脑节奏不拖沓（单个电脑回合 ≤10 个 3 秒步）', perSteps <= 10,
+  `${(paceMs/1000).toFixed(1)} 秒 ≈ ${perSteps.toFixed(1)} 个 3 秒步`);
+// 切回本地对战，别把设置留给下一次
+w.localStorage.setItem('cnvillage.mode.v1','local');
+w.__game.setMode('local');
+
+say('\n=== 11. 种子集市闭环 ===');
+w.__game.newGame();
+await new Promise(r=>setTimeout(r,350));
+const st4 = w.__game.state;
+const mkt = dataMod.TRACK.findIndex(c=>c.kind==='zhongzi');
+// 本地对战：viewSeat() = curSeat() = order[turn]。turn 是「次序」不是座位，
+// 直接拿 st4.turn 当座位号会错位（面板主人对不上，操作按钮为空）。
+const seat = st4.order[st4.turn];
+st4.players[seat].pos = mkt;
+st4.players[seat].money = 800;
+w.__game.debug.render();
+const acts4 = w.__game.debug.landActions();
+const mktAct = acts4.find(a=>a.label.includes('种子集市'));
+check('集市格给出「进入种子集市」操作', !!mktAct, acts4.map(a=>a.label).join(' / '));
+if (mktAct) mktAct.onClick();
+await new Promise(r=>setTimeout(r,280));
+const ml = w.document.getElementById('marketlist');
+const nCards = ml ? ml.querySelectorAll('img[data-seed]').length : 0;
+check('集市弹层列出在售作物卡', nCards>0, `${nCards} 张`);
+const moneyA = st4.players[seat].money;
+const firstCard = ml && ml.querySelector('img[data-seed]');
+if (firstCard) firstCard.click();
+await new Promise(r=>setTimeout(r,280));
+check('买卡后扣钱', st4.players[seat].money < moneyA,
+  `${moneyA} → ${st4.players[seat].money}`);
+check('底栏出现作物卡手牌', w.document.querySelectorAll('.seedchip').length>0,
+  w.document.querySelectorAll('.seedchip').length+' 种');
+check('手牌计数已更新', Number(w.document.getElementById('seedcount').textContent)>0,
+  w.document.getElementById('seedcount').textContent);
+w.document.getElementById('modal-close').click();
+
+say('\n=== 12. 小屏不溢出（矮窗口回归） ===');
+// 把 iframe 缩到 1280×720（常见投影分辨率），锁住「底栏内容溢出视口」这个回归
+const fEl = document.getElementById('f');
+fEl.style.width = '1280px'; fEl.style.height = '720px';
+await new Promise(r=>setTimeout(r,600));
+const bb2 = w.document.getElementById('bottombar');
+check('底栏内容不溢出栏高',
+  bb2.scrollHeight <= bb2.clientHeight + 2,
+  `scrollH=${bb2.scrollHeight} clientH=${bb2.clientHeight}`);
+const docH = w.document.documentElement.scrollHeight;
+check('矮窗口不产生页面纵向滚动', docH <= w.innerHeight + 1,
+  `页面高 ${docH} / 视口 ${w.innerHeight}`);
+// 超窄屏：顶栏不能把控件挤出屏幕
+fEl.style.width = '414px'; fEl.style.height = '896px';
+await new Promise(r=>setTimeout(r,600));
+const btnNew = w.document.getElementById('btn-new').getBoundingClientRect();
+const btnRule = w.document.getElementById('btn-rules').getBoundingClientRect();
+check('手机窄屏下按钮仍在视口内',
+  btnNew.right <= w.innerWidth + 1 && btnRule.right <= w.innerWidth + 1
+  && btnNew.height > 0,
+  `新游戏 right=${Math.round(btnNew.right)} / 视口 ${w.innerWidth}`);
+const pcard = w.document.querySelector('.pcard').getBoundingClientRect();
+check('手机窄屏下部落卡片正常（2 列）',
+  pcard.width > 80 && pcard.height < 120,
+  `${Math.round(pcard.width)}×${Math.round(pcard.height)}`);
+
+// 手机竖屏专项：地图占视口一半、居中对称、其余内容可滑动
+fEl.style.width = '414px'; fEl.style.height = '896px';
+await new Promise(r=>setTimeout(r,800));
+const stg = w.document.getElementById('stage').getBoundingClientRect();
+const vh2 = w.innerHeight;
+const pct = stg.height / vh2;
+check('手机竖屏：地图占屏高约一半', pct >= 0.46 && pct <= 0.54,
+  `${(pct*100).toFixed(1)}% （${Math.round(stg.height)}/${vh2}）`);
+const wrapR = w.document.getElementById('board-wrap').getBoundingClientRect();
+/* 图板要在「卡片条以上」的区域里居中：窄屏竖列是压在图板下缘的一条，
+   stage 底部被 layoutBoard 留出等高的 padding（见 main.js layoutBoard），
+   所以量居中得按内容盒（扣掉 padding / 边框）算，不能按整个 stage 的边框盒 ——
+   老断言量的是边框盒，图板下缘被卡片条盖住 46px 也照样「居中」、照样绿。 */
+const stgEl = w.document.getElementById('stage');
+const cs2 = w.getComputedStyle(stgEl);
+const cTop = stg.top + stgEl.clientTop + parseFloat(cs2.paddingTop);
+const cBot = stg.top + stgEl.clientTop + stgEl.clientHeight - parseFloat(cs2.paddingBottom);
+const padTop = wrapR.top - cTop, padBot = cBot - wrapR.bottom;
+check('地图在「卡片条以上」区域上下居中对称', Math.abs(padTop - padBot) <= 6,
+  `上留白 ${Math.round(padTop)} / 下留白 ${Math.round(padBot)}`);
+const hubR = w.document.getElementById('cardhub').getBoundingClientRect();
+check('图板下缘让开卡片条（底排赛道卡不被盖）',
+  wrapR.bottom <= hubR.top + 1,
+  `图板底 ${Math.round(wrapR.bottom)} ≤ 卡片条顶 ${Math.round(hubR.top)}`);
+const sz2 = w.document.getElementById('scrollzone');
+check('其余内容放进可滑动区',
+  !!sz2 && sz2.scrollHeight > sz2.clientHeight + 4,
+  `可滚 ${sz2 ? (sz2.scrollHeight - sz2.clientHeight) : 0}px`);
+const sideP = w.document.getElementById('sidepanel');
+check('滚动区内各块未被压扁（日志/掷骰可见）',
+  sideP.getBoundingClientRect().height > 80,
+  `${Math.round(sideP.getBoundingClientRect().height)}px`);
+
+// 手机端弹层：内容区宽度决定卡片是1 列还是 2 列，
+// 之前 414px 下选种 10 张卡全退化成单列、要滚 4989px
+await new Promise(r=>setTimeout(r,300));
+const sdIdx = w.__game.TRACK.findIndex(c=>c.kind==='land'&&c.soilId==='shandong');
+if (sdIdx >= 0) {
+  w.__game.debug.giveLand(0, sdIdx);
+  await new Promise(r=>setTimeout(r,200));
+  w.__game.debug.setActor(0);              // 面板主人 = 座位 0，弹层才会开
+  w.__game.state.players[0].pos = sdIdx;   // 新规则：只能给「脚下」的地种植
+  w.__game.state.players[0].seeds = { shuidao: 3 };  // 保证手中有「够种满 2 片」的种子，供按片收益断言
+  w.__game.debug.openPlantModal(sdIdx);
+  await new Promise(r=>setTimeout(r,400));
+  const mbody = w.document.getElementById('modal-body');
+  const grid = w.document.querySelector('#modal-body .cardgrid');
+  const cols = grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length : 0;
+  check('手机端弹层卡面为 2 列（不是单列长滚）', cols === 2,
+    cols + ' 列' + (grid ? `，每列 ${Math.round(grid.getBoundingClientRect().width/cols)}px` : ''));
+  check('手机端弹层无横向溢出', mbody.scrollWidth - mbody.clientWidth <= 0,
+    `scrollW-clientW = ${mbody.scrollWidth - mbody.clientWidth}px`);
+  // 所有子元素都必须在视口内（之前测过把「元素左侧到右边界距离」误当左溢出）
+  const VW = w.innerWidth;
+  let worstOv = 0, worstTag = '';
+  for (const el of mbody.querySelectorAll('*')) {
+    const rr = el.getBoundingClientRect();
+    const ov = Math.max(rr.right - VW, -rr.left);
+    if (ov > worstOv) { worstOv = ov; worstTag = el.tagName.toLowerCase(); }
+  }
+  check('弹层内无子元素越界', worstOv <= 1, worstOv <= 1 ? '全部在视口内' : `溢出 ${worstOv.toFixed(0)}px ← ${worstTag}`);
+  const mc = w.document.getElementById('modal-close').getBoundingClientRect();
+  check('弹层关闭按钮达到触屏点击区（≥40px）', mc.width >= 40 && mc.height >= 40,
+    `${Math.round(mc.width)}×${Math.round(mc.height)}`);
+  /* 成本标注有两种合法形态（新规则）：
+       ① 有种子 → 种植不收钱，必须写明「消耗 N 张种子」（N = 本次片数），
+          否则玩家以为自己被重复扣钱；
+       ② 没种子 → 根本不能种，必须写明「无种子 · 不可种」并给出去处。 */
+  const cap = grid ? grid.querySelector('figcaption').textContent.replace(/\s+/g,' ').trim() : '';
+  check('选种卡标明本次成本（消耗种子 或 无种子不可种）',
+    /消耗\s*\d+\s*张种子/.test(cap) || /无种子/.test(cap),
+    cap.slice(0, 40));
+  /* 片数选择器：肥力是**上限**不是指标，玩家自选 1~剩余空位（用户实测诉求）。
+     山东棕壤 = 中肥力 = 容量 2 片，所以默认 2 片、可减到 1 片。 */
+  const qbar = w.document.querySelector('#modal-body .qtybar');
+  const qv = () => {
+    const e = w.document.querySelector('#modal-body #qty-val');
+    return e ? Number(e.textContent) : -1;
+  };
+  /* 取一张「种子够种满本次片数」的卡来验收益随片数变化：
+     noseed / notenough 的卡展示的是**实际可种片数**（种子不够时就少种），
+     不随 − / ＋ 改变，拿来测「按片计收益」会误报。 */
+  const netTxt = () => {
+    const f = [...w.document.querySelectorAll('#modal-body #croppick figure')]
+      .find(x => !x.classList.contains('noseed') && !x.classList.contains('notenough'));
+    return f ? f.textContent.replace(/\s+/g,' ') : '';
+  };
+  const netNum = () => Number((netTxt().match(/净\s*([+-]?\d+)/) || [])[1]);
+  check('种植弹层有「片数选择器」（− / 数字 / ＋）',
+    !!qbar && !!qbar.querySelector('#qty-minus') && !!qbar.querySelector('#qty-plus'),
+    qbar ? qbar.textContent.replace(/\s+/g,' ').trim().slice(0, 40) : '无');
+  const q1 = qv();
+  check('片数默认 = 剩余空位（中肥力 → 2 片）', q1 === 2, `默认 ${q1} 片`);
+  const n1 = netNum();
+  w.document.querySelector('#modal-body #qty-minus').click();
+  await new Promise(r=>setTimeout(r,150));
+  const q2 = qv(), n2 = netNum();
+  check('点「−」可少种一片（不强制种满）', q2 === 1, `${q1} → ${q2}`);
+  check('卡片收益随片数下降（按片计）', n2 < n1, `${q1}片净${n1} → ${q2}片净${n2}`);
+  w.document.querySelector('#modal-body #qty-plus').click();
+  await new Promise(r=>setTimeout(r,150));
+  const q3 = qv(), n3 = netNum();
+  check('点「＋」可加回一片（不超过剩余空位）', q3 === 2, `${q2} → ${q3}`);
+  check('收益随片数回升', n3 === n1, `${q2}片净${n2} → ${q3}片净${n3}`);
+  check('「＋」到顶后禁用', w.document.querySelector('#modal-body #qty-plus').disabled === true,
+    'disabled=' + w.document.querySelector('#modal-body #qty-plus').disabled);
+  w.document.getElementById('modal-close').click();
+  await new Promise(r=>setTimeout(r,250));
+  // 加成标签必须独占一行（之前 display:inline-block 会和「净+95」挤同一行）
+  w.__game.debug.openMarket();
+  await new Promise(r=>setTimeout(r,400));
+  const mkCols = (() => {
+    const g2 = w.document.querySelector('#modal-body .cardgrid');
+    return g2 ? getComputedStyle(g2).gridTemplateColumns.split(' ').filter(Boolean).length : 0;
+  })();
+  check('种子集市在手机端也是 2 列', mkCols === 2, mkCols + ' 列');
+  const cc = w.document.querySelector('#modal-body .cc-bonus, #modal-body .cc-full');
+  const ccDisp = cc ? getComputedStyle(cc).display : '-';
+  check('加成/囤满标签独占一行（block）', ccDisp === 'block' || ccDisp === '-', ccDisp);
+  const mcl = w.document.getElementById('modal-close');
+  if (mcl) mcl.click();
+  await new Promise(r=>setTimeout(r,200));
+} else {
+  check('赛道上有山东棕壤可供测试', false, '未找到');
+}
+
+// 复原
+fEl.style.width = '1500px'; fEl.style.height = '900px';
+await new Promise(r=>setTimeout(r,400));
+
+// ============================================================
+say('\n=== 13. 开局基础种子卡 ===');
+{
+  // 前面的集市用例给 A 部落买过种子卡，先重开一局拿到干净的初始状态
+  w.__game.newGame();
+  await new Promise(r => setTimeout(r, 500));
+  const st = w.__game.state;
+  const seedCounts = st.players.map(p => Object.keys(p.seeds).length);
+  check('每个部落开局各 2 张基础种子卡',
+    seedCounts.every(n => n === 2), seedCounts.join('/'));
+  check('记录了抽到的 3 张候选',
+    st.players.every(p => Array.isArray(p.seedDrawn) && p.seedDrawn.length === 3),
+    st.players[0].seedDrawn.join('、'));
+  check('底栏种子卡计数已反映',
+    Number(w.document.getElementById('seedcount').textContent) > 0,
+    w.document.getElementById('seedcount').textContent);
+  const chips = w.document.querySelectorAll('#seedrow .seedchip').length;
+  check('种子卡 chip 已渲染', chips >= 2, chips + ' 个');
+  // 发牌明细是 UI 的 pushLog 播报的（只写 DOM，不进 G.log）
+  const logTxt = w.document.getElementById('log').textContent;
+  check('日志播报了发牌明细',
+    (logTxt.match(/基础种子卡入库/g) || []).length === 4,
+    (logTxt.match(/基础种子卡入库/g) || []).length + ' 条');
+}
+
+say('\n=== 14. 游戏日志着色与图标 ===');
+{
+  const kinds = w.__game.debug.LOG_KINDS;
+  check('定义了多种日志类型', kinds.length >= 20, kinds.length + ' 种');
+  const lines = [...w.document.querySelectorAll('#log .li')];
+  check('日志每行都带类型 class', lines.every(l => /\bk-[\w-]+/.test(l.className)),
+    lines.slice(0, 3).map(l => l.className).join(' | '));
+  const withIcon = lines.filter(l => l.querySelector('.ico') && l.querySelector('.ico').textContent.trim());
+  check('每行都有图标', withIcon.length === lines.length,
+    `${withIcon.length}/${lines.length}`);
+  // 不同类型有不同颜色
+  const turn = w.document.querySelector('#log .li.k-turn');
+  const seed = w.document.querySelector('#log .li.k-seed');
+  const c1 = turn && getComputedStyle(turn).color;
+  const c2 = seed && getComputedStyle(seed).color;
+  check('不同类型颜色不同', c1 && c2 && c1 !== c2, `turn=${c1} seed=${c2}`);
+  check('回合交接有独立底色', turn && getComputedStyle(turn).backgroundColor !== 'rgba(0, 0, 0, 0)',
+    turn ? getComputedStyle(turn).backgroundColor : '-');
+}
+
+say('\n=== 15. 查阅科普按钮 ===');
+{
+  // 土地详情弹层
+  const sdIdx = w.__game.TRACK.findIndex(c => c.kind === 'land' && c.soilId === 'shandong');
+  w.document.querySelectorAll('#cells .cell')[sdIdx].click();
+  await new Promise(r => setTimeout(r, 400));
+  const wb = w.document.querySelector('#modal-body .wikibtn');
+  check('土地信息卡有科普按钮', !!wb, wb ? wb.textContent.trim() : '无');
+  check('科普按钮指向百度百科', !!wb && /baike\.baidu\.com/.test(wb.href),
+    wb ? wb.href.slice(0, 62) : '-');
+  check('科普按钮新标签页打开', !!wb && wb.target === '_blank',
+    wb ? wb.target : '-');
+  w.document.getElementById('modal-close').click();
+  await new Promise(r => setTimeout(r, 250));
+
+  // 种子集市里的作物卡
+  w.__game.debug.openMarket();
+  await new Promise(r => setTimeout(r, 400));
+  const mini = [...w.document.querySelectorAll('#modal-body .wikibtn--mini')];
+  check('种子卡有科普按钮', mini.length >= 3, mini.length + ' 个');
+  check('全部指向百科',
+    mini.length > 0 && mini.every(a => /baike\.baidu\.com/.test(a.href)),
+    mini[0] ? mini[0].href.slice(0, 58) : '-');
+  w.document.getElementById('modal-close').click();
+  await new Promise(r => setTimeout(r, 250));
+
+  // 改良卡手牌角标（#hand 渲染的是面板主人，不是固定座位 0）
+  const st = w.__game.state;
+  const me = panelP();
+  me.hand = ['dimo', 'youjifei'];
+  w.__game.debug.render();
+  await new Promise(r => setTimeout(r, 300));
+  const badges = [...w.document.querySelectorAll('#hand .wikibadge')];
+  check('改良卡有科普角标', badges.length === 2, badges.length + ' 个');
+  check('改良卡角标指向百科', badges.length > 0 && badges.every(a => /baike\.baidu\.com/.test(a.href)),
+    badges[0] ? badges[0].href.slice(0, 52) : '-');
+  // 数据层：33 条全部挂上了链接
+  const dataMod = await import('/src/data.js');
+  const all = [...dataMod.LANDS, ...dataMod.CROPS, ...dataMod.IMPROVES];
+  check('所有条目都有 wiki 链接',
+    all.every(x => typeof x.wiki === 'string' && x.wiki.startsWith('https://')),
+    `${all.filter(x => x.wiki).length}/${all.length}`);
+  check('链接都是百科站内',
+    all.every(x => /baike\.baidu\.com\/(item|search)/.test(x.wiki)));
+}
+
+say('\n=== 16. 单机模式选择部落 ===');
+{
+  const dbg = w.__game.debug;
+  const before = w.__game.seat;
+  dbg.openChooseTribe();
+  await new Promise(r => setTimeout(r, 400));
+  const cards = [...w.document.querySelectorAll('#modal-body .pickcard')];
+  check('选择界面列出 4 个部落', cards.length === 4, cards.length + ' 张');
+  check('每张卡显示特长名',
+    cards.every(c => /沃野中原|稻作之源|追风千里|丝路商队/.test(c.textContent)),
+    cards.length ? cards[0].querySelector('.picktrait').textContent.trim() : '-');
+  // 选第3 个（C 部落 琵琶）并确认
+  const target = 2;
+  cards[target].click();
+  await new Promise(r => setTimeout(r, 200));
+  check('点选后标记为当前选择',
+    cards[target].classList.contains('on') && !cards[0].classList.contains('on'),
+    'on=' + cards.findIndex(c => c.classList.contains('on')));
+  w.document.getElementById('pick-ok').click();
+  await new Promise(r => setTimeout(r, 700));
+  check('座位已切换', w.__game.seat === target, 'seat=' + w.__game.seat);
+  check('切到单机模式', w.__game.mode === 'solo', w.__game.mode);
+  /* 新规则：顺序第一位是谁就谁先手，选了部落不保证立刻轮到真人 ——
+     等电脑把先手回合走完、交回真人，再看面板归属。 */
+  await waitHumanTurn(target);
+  const st = w.__game.state;
+  check('按新座位开局：真人最终拿到回合（先手是电脑就先电脑走）',
+    st.order[st.turn] === target && !w.__game.isAI(st.order[st.turn]),
+    `turn=${st.turn} seat=${st.order[st.turn]} 真人=${!w.__game.isAI(st.order[st.turn])}`);
+  check('其余三席为电脑',
+    [0, 1, 2, 3].filter(i => i !== target).every(i => w.__game.isAI(i)),
+    [0, 1, 2, 3].map(i => (w.__game.isAI(i) ? 'AI' : '人')).join('/'));
+  // 复原
+  w.__game.setSeat(before);
+  w.__game.setMode('local');
+  w.__game.newGame();
+  await new Promise(r => setTimeout(r, 500));
+  w.localStorage.removeItem('cnvillage.seat.v1');
+}
+
+say('\n=== 17. 土地面板移到图例上方 ===');
+{
+  /* ⚠️ 这里原本设成 1600×1000，但外层无头窗口只有 1500×950 ——
+     iframe 被撑大后 layoutBoard() 按 1600 宽算可用空间，
+     而超出视口的部分拿不到高度，stage 高度塌到 ~94px、
+     图板被压成 84×64。这个「坏布局」会一路污染到 §23
+     （实测「图板宽度未被挤扁 → 251px / 119px」）。
+     改成跟随视口实测值，跑完还原成真实视口尺寸。 */
+  /* 保持 1600×1000（2026-10-18 试图改成跟随视口，反而让 §23 的两条几何断言
+     从 PASS 变 FAIL —— 这个 iframe 尺寸是 §23 的隐式前置条件，
+     不是随手写的数：页面是 height:100dvh + overflow:hidden，
+     iframe 高 1000px 时 #stage 能拿到 584px 高度；一旦改成跟随视口（≤950），
+     stage 会掉到 ~220px、图板被压扁。
+     ⚠️ 本轮试过 5 个值（100% / _h0 / w.innerHeight / 父容器 clientHeight /
+        min(1500,·)），**全都让 §23 翻车**。这是一个遗留的脆弱耦合，
+        彻底修需要重新设计 §23 的测量基准（改成按内容盒或先强制统一尺寸），
+        不该在「加卷轴」这种任务里顺手改。暂时保持原样。 */
+  fEl.style.width = '1600px'; fEl.style.height = '1000px';
+  await new Promise(r => setTimeout(r, 700));
+  const d = w.document;
+  const col = d.querySelector('.legend-col');
+  const fp = d.getElementById('farmpanel');
+  const lg = d.querySelector('.legend');
+  const bw = d.getElementById('board-wrap');
+  check('竖列容器存在', !!col && !!fp && !!lg);
+  const cr = col.getBoundingClientRect(), fr = fp.getBoundingClientRect(),
+        lr = lg.getBoundingClientRect(), br = bw.getBoundingClientRect();
+  check('土地面板在图例上方', fr.bottom <= lr.top + 1,
+    `土地面板底 ${Math.round(fr.bottom)} / 图例顶 ${Math.round(lr.top)}`);
+  /* 竖列现在在 stage **左**侧（2026-10-08 从右下挪到左边），
+     所以让位方向也反过来了：图板靠 margin-left 右移，
+     竖列的右边缘 应在 图板左边缘 左侧，间隙 ≥20px。 */
+  const stR = d.getElementById('stage').getBoundingClientRect();
+  /* 只测「贴左」：竖列是 left:10px 相对 stage 的 padding box，
+     stage 有 14px padding，实测间距 11px（14-10 再减边框）。
+     别去测 top —— 竖列 top:10px 同样受 padding 影响，比舞台低 11px。 */
+  check('竖列贴舞台左边', cr.left - stR.left <= 20,
+    `左 ${Math.round(cr.left)} / 舞台左 ${Math.round(stR.left)}`);
+  check('竖列不与图板重叠（图板在右）', br.left - cr.right >= 20,
+    `间隙 ${Math.round(br.left - cr.right)}px`);
+  check('底栏只剩窄屏入口（手牌已搬进竖列）',
+    d.querySelectorAll('#bottombar .bb-item').length === 0 &&
+    !d.querySelector('#bottombar #myfarms') &&
+    !d.querySelector('#bottombar #hand'),
+    d.querySelectorAll('#bottombar .bb-item').length + ' 个 bb-item');
+  check('手牌已搬到图板左侧竖列、排「农耕志」之下',
+    (() => {
+      const lh = d.querySelector('.legend-hand');
+      const ce = d.querySelector('#codex-entry');
+      if (!lh || !ce) return false;
+      /* 必须同为 .legend-col 的后代，且手牌块在农耕志按钮之后（DOM 序即视觉序） */
+      const col = d.querySelector('.legend-col');
+      return col && col.contains(lh) && col.contains(ce)
+        && (ce.compareDocumentPosition(lh) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+    })(),
+    'hand@' + Math.round(d.querySelector('.legend-hand').getBoundingClientRect().y)
+      + ' codex@' + Math.round(d.querySelector('#codex-entry').getBoundingClientRect().y));
+  const lhW = d.querySelector('.legend-hand').getBoundingClientRect().width;
+  check('竖列手牌宽度贴合竖列（≤240px）', lhW <= 240, Math.round(lhW) + 'px');
+  /* 底栏高度已从 104px 砍到一半（手牌搬走），锁住这个收益不被改回去 */
+  const bbH = d.getElementById('bottombar').getBoundingClientRect().height;
+  check('底栏高度已减半（≤60px）', bbH <= 60, Math.round(bbH) + 'px');
+
+  /* ⚠️ 这里原本无收尾动作，2026-10-18 加过一个
+     `dispatchEvent(resize)` 想让 layoutBoard() 重算 —— 结果反而让 §23 的两条
+     几何断言从 PASS 变 FAIL（board-wrap 251px）。已撤掉，保持与基线完全一致。
+     §23 的两条（「图板下缘让开卡片条」「图板宽度未被挤扁」）是**遗留脆弱断言**：
+     它们隐式依赖 §17 设的 1600×1000 这个 iframe 尺寸，而该尺寸又会改变
+     命中的媒体断点（≤620px 那档把 #stage 压成50dvh）。
+     本轮试过 5 种改法（100% / _h0 / w.innerHeight / 父容器 clientHeight /
+     min(1500,·)）全部让 §23 翻车 —— 要彻底修必须重新设计 §23 的测量基准
+     （改成按内容盒算，或在 §23 开头强制统一 iframe 尺寸），不该顺手改。 */
+}
+
+say('\n=== 18. 三类手牌详情入口 ===');
+{
+  const d = w.document;
+  const st = w.__game.state;
+  const me = panelP();     // 入口徽章显示的是面板主人，不是 G.turn
+  // 造齐三类手牌
+  const dataMod = await import('/src/data.js');
+  const seedId = Object.keys(me.seeds)[0] || dataMod.CROPS[0].id;
+  me.seeds = {}; me.seeds[seedId] = 2;
+  me.hand = ['dimo', 'diguan'];
+  me.weatherCards = ['w2'];
+  w.__game.debug.render();
+  await new Promise(r => setTimeout(r, 400));
+
+  const hubs = ['hub-seed', 'hub-weather', 'hub-improve'];
+  check('图例上方有三个入口',
+    hubs.every(id => !!d.getElementById(id)), hubs.join('/'));
+  check('三个计数与手牌数量一致',
+    Number(d.getElementById('seedcount2').textContent) === 2 &&
+    Number(d.getElementById('handcount2').textContent) === 2 &&
+    Number(d.getElementById('weathercount').textContent) === 1,
+    `作物 ${d.getElementById('seedcount2').textContent} / 气象 ${d.getElementById('weathercount').textContent} / 改良 ${d.getElementById('handcount2').textContent}`);
+  const wb = d.getElementById('hub-weather');
+  check('有待发气象卡时入口高亮', wb.classList.contains('urgent'), wb.className);
+
+  // 逐个点开
+  for (const [id, kw] of [['hub-seed', '作物卡'], ['hub-weather', '延时气象卡'], ['hub-improve', '改良卡']]) {
+    d.getElementById(id).click();
+    await new Promise(r => setTimeout(r, 380));
+    const body = d.getElementById('modal-body').textContent;
+    check('点开「' + kw + '」有详情', body.includes(kw), body.slice(0, 34).replace(/\s+/g, ' '));
+    const cards = d.querySelectorAll('#modal-body .hubcard');
+    check(kw + '弹层有卡片', cards.length >= 1, cards.length + ' 张');
+    d.getElementById('modal-close').click();
+    await new Promise(r => setTimeout(r, 220));
+  }
+  // 气象卡弹层要说明"下次种植才生效"
+  d.getElementById('hub-weather').click();
+  await new Promise(r => setTimeout(r, 350));
+  const wt = d.getElementById('modal-body').textContent;
+  check('气象卡弹层说明延时语义',
+    /下一次|下次种植/.test(wt) && /不会自动结算/.test(wt),
+    (wt.match(/.{0,20}下一次.{0,20}/) || [''])[0]);
+  d.getElementById('modal-close').click();
+  await new Promise(r => setTimeout(r, 250));
+}
+
+say('\n=== 19. 高收益作物付费揭示 ===');
+{
+  const d = w.document;
+  w.__game.newGame();
+  await new Promise(r => setTimeout(r, 450));
+  const st = w.__game.state;
+  // 找一块适配 ≥2 种作物的地（山东棕壤适配花生）
+  const idx = w.__game.TRACK.findIndex(c => c.kind === 'land' && c.soilId === 'shandong');
+  /* 检测费由「面板主人」承担（main.js payReveal 用 viewSeat()）。
+     local 模式下 viewSeat() = 当前行动者，不一定是座位 0 —— 写死 players[0]
+     会在轮到别人时看错人（曾经误报「没扣钱」）。 */
+  const vp19 = st.players[w.__game.debug.viewSeat()];
+  vp19.money = 500;
+  d.querySelectorAll('#cells .cell')[idx].click();
+  await new Promise(r => setTimeout(r, 420));
+  const bar = d.querySelector('#modal-body .revealbar');
+  check('未揭示时显示检测提示条', !!bar, bar ? bar.textContent.trim().slice(0, 26) : '无');
+  const btnRv = d.getElementById('btn-reveal');
+  check('有「土壤检测」按钮（5 币）', !!btnRv && btnRv.textContent.includes('5'), btnRv ? btnRv.textContent.trim() : '无');
+  const rowsBefore = d.querySelectorAll('#modal-body .revealtable tr').length;
+  const goodBefore = d.querySelectorAll('#modal-body .revealtable tr.row-good').length;
+  check('揭示前没有高亮行', goodBefore === 0, goodBefore + ' 行');
+
+  /* 付费前必须**真的看不到数字**：
+     早先实现是「显示非适配土壤的保守数字」，结果玩家照样看到一整张
+     具体收益表（还全是错值），既泄题又误导。现在整表雾化。 */
+  const fogT = d.querySelector('#modal-body .revealtable.fogged');
+  check('付费前收益表被标记为雾化', !!fogT, fogT ? 'class=' + fogT.className : '无 .fogged');
+  if (fogT) {
+    const fcs = getComputedStyle(fogT);
+    check('雾化层有 blur 滤镜', /blur/.test(fcs.filter || 'none'), fcs.filter || 'none');
+    check('雾化层不可选中', fcs.userSelect === 'none' || fcs.pointerEvents === 'none',
+      `user-select=${fcs.userSelect} / pointer-events=${fcs.pointerEvents}`);
+  }
+  check('付费前有「未检测」遮罩提示',
+    /未检测/.test(d.getElementById('modal-body').textContent));
+  check('付费前数字位被遮住（≥20 个占位）',
+    d.querySelectorAll('#modal-body .fogtxt').length >= 20,
+    d.querySelectorAll('#modal-body .fogtxt').length + ' 个数字位');
+  /* 关键：付费前正文里不该出现任何带正负号的收益数字 */
+  const seg19 = (d.getElementById('modal-body').textContent.split('作物收益表')[1] || '');
+  check('付费前不泄露任何净收益数值', !/[+-]\s?\d/.test(seg19),
+    seg19.slice(0, 46).replace(/\s+/g, ' '));
+
+  const moneyBefore = vp19.money;
+  btnRv.click();
+  await new Promise(r => setTimeout(r, 450));
+  const goodAfter = d.querySelectorAll('#modal-body .revealtable tr.row-good').length;
+  check('付费后高亮行出现', goodAfter > 0, goodAfter + ' 行高亮');
+  check('扣了 5 肥力币', vp19.money === moneyBefore - 5,
+    `${moneyBefore} → ${vp19.money}`);
+  check('提示条消失（已揭示）', !d.querySelector('#modal-body .revealbar'));
+  check('付费后雾化移除', !d.querySelector('#modal-body .revealtable.fogged'));
+  check('付费后显示「已检测·永久可见」标记',
+    /已检测/.test(d.getElementById('modal-body').textContent));
+  check('付费后不再有占位符',
+    d.querySelectorAll('#modal-body .fogtxt').length === 0);
+  check('付费后能看到真实净收益数字',
+    /[+-]\s?\d/.test(d.getElementById('modal-body').textContent.split('作物收益表')[1] || ''));
+  check('表格行数不变', d.querySelectorAll('#modal-body .revealtable tr').length === rowsBefore);
+  // 再次打开应保持已揭示
+  d.getElementById('modal-close').click();
+  await new Promise(r => setTimeout(r, 250));
+  d.querySelectorAll('#cells .cell')[idx].click();
+  await new Promise(r => setTimeout(r, 420));
+  check('再次查看仍为已揭示', !d.querySelector('#modal-body .revealbar') &&
+    d.querySelectorAll('#modal-body .revealtable tr.row-good').length > 0);
+  d.getElementById('modal-close').click();
+  await new Promise(r => setTimeout(r, 250));
+}
+
+say('\n=== 20. 快速模式与窗口尺寸 ===');
+{
+  const d = w.document;
+  const bf = d.getElementById('btn-fast');
+  check('顶栏有节奏切换按钮', !!bf, bf ? bf.textContent.trim() : '无');
+  const t0 = bf.textContent.trim();
+  bf.click();
+  await new Promise(r => setTimeout(r, 250));
+  const t1 = bf.textContent.trim();
+  check('点击后状态变化', t0 !== t1, `${t0} → ${t1}`);
+  check('状态被持久化', w.localStorage.getItem('cnvillage.fastmode.v1') !== null,
+    w.localStorage.getItem('cnvillage.fastmode.v1'));
+  bf.click();   // 复原
+  await new Promise(r => setTimeout(r, 250));
+  check('可切回', bf.textContent.trim() === t0, bf.textContent.trim());
+
+  const colW = d.querySelector('.legend-col').getBoundingClientRect().width;
+  check('右下角竖列已收窄（≤240px）', colW <= 240, Math.round(colW) + 'px');
+  /* 原来这条量的是底栏手牌宽度；手牌搬进竖列后改量竖列里的手牌块 */
+  const lhW2 = d.querySelector('.legend-hand').getBoundingClientRect().width;
+  check('竖列手牌已收窄（≤240px）', lhW2 <= 240, Math.round(lhW2) + 'px');
+}
+
+say('\n=== 21. 改良卡持有即增益（UI） ===');
+{
+  const d = w.document;
+  const st = w.__game.state;
+  // turn 是 order 里的「第几位」，不是座位号 —— 必须经 order 转成座位
+  const me = st.players[st.order[st.turn]];
+  // 面值 20（最高）→ 每张 +6%；3 张 → 合计 +18%
+  me.hand = ['nongyao', 'nongyao', 'nongyao'];
+  w.__game.debug.render();
+  await new Promise(r => setTimeout(r, 350));
+  const badges = d.querySelectorAll('#hand .hcard .imp-rate');
+  check('面值20 的改良卡每张标 +6%',
+    badges.length === 3 && [...badges].every(b => /\+6%/.test(b.textContent)),
+    [...badges].map(b => b.textContent).join('|') || (badges.length + ' 张'));
+  const ib = d.getElementById('impbonus');
+  check('底栏显示总增益 +18%', !!ib && /18/.test(ib.textContent), ib ? ib.textContent : '无');
+  const card = d.querySelector('#hand .hcard');
+  check('卡面提示改为「持有/弃牌」', /持有|弃掉/.test(card.title),
+    card.title.split('\n')[1]);
+}
+
+say('\n=== 22. 三类手牌弹层：全部部落 + 首行统计 ===');
+{
+ try {
+  const dbg = w.__game.debug;
+  const ps = w.__game.state.players;
+  // 给四个部落配齐三类卡，才能验证「对手的卡也列出来」
+  ps[0].seeds = { yumi: 2, shuidao: 1 };
+  ps[1].seeds = { shuidao: 3 };
+  ps[2].seeds = { yumi: 1, xiaomai: 2 };
+  ps[3].seeds = { youcai: 1 };
+  /* 四栏都要写全：上一节(21)给「当前行动者」发了 3 张改良卡，而那个座位是随机的。
+     只重置 ps[0]/ps[2]，会把 ps[1] 或 ps[3] 的残留手牌算进统计 → 偶发 FAIL。 */
+  ps[0].weatherCards = ['w1']; ps[1].weatherCards = [];
+  ps[2].weatherCards = ['w3']; ps[3].weatherCards = [];
+  ps[0].hand = ['nongyao', 'nongyao']; ps[1].hand = [];   // 面值20 ×2 → 增益 +12%
+  ps[2].hand = ['cetu']; ps[3].hand = [];
+
+  /* --- 作物卡 --- */
+  dbg.openCardHub('seed');
+  await new Promise(r=>setTimeout(r,250));
+  let ts = w.document.querySelectorAll('#modal-body .tribestat .ts-cell');
+  check('作物卡：首行有4 个部落统计格', ts.length === 4, ts.length + ' 个');
+  check('作物卡：统计数字与各部落持有量一致',
+    [...ts].map(e => Number(e.querySelector('.ts-n').textContent)).join('/') === '3/3/3/1',
+    [...ts].map(e => e.querySelector('.ts-n').textContent).join('/'));
+  check('作物卡：恰好一个「你」标记',
+    w.document.querySelectorAll('#modal-body .tribestat .ts-cell.me').length === 1);
+  const tbh = w.document.querySelectorAll('#modal-body .tbh');
+  check('作物卡：按部落分成4 个小节', tbh.length === 4, tbh.length + ' 节');
+  check('作物卡：列出了对手的卡（古蜀部落的卡也在列表里）',
+    [...w.document.querySelectorAll('#modal-body .hubcard figcaption b')].some(b => /水稻/.test(b.textContent)));
+  dbg.closeModal();
+  await new Promise(r=>setTimeout(r,200));
+
+  /* --- 气象卡 --- */
+  dbg.openCardHub('weather');
+  await new Promise(r=>setTimeout(r,250));
+  ts = w.document.querySelectorAll('#modal-body .tribestat .ts-cell');
+  check('气象卡：首行4 个部落统计格', ts.length === 4, ts.length + ' 个');
+  check('气象卡：按部落分节，每节都列出该部落的卡或「无」',
+    w.document.querySelectorAll('#modal-body .tbh').length === 4,
+    w.document.querySelectorAll('#modal-body .tbh').length + ' 节');
+  check('气象卡：长安部落 1 张 / 丝绸部落 1 张',
+    [...ts].map(e => Number(e.querySelector('.ts-n').textContent)).join('/') === '1/0/1/0',
+    [...ts].map(e => e.querySelector('.ts-n').textContent).join('/'));
+  check('气象卡：对手的卡也列出来（台风过境）',
+    [...w.document.querySelectorAll('#modal-body .hubcard figcaption b')].some(b => /台风/.test(b.textContent)),
+    [...w.document.querySelectorAll('#modal-body .hubcard figcaption b')].map(b => b.textContent).join('|'));
+  check('气象卡：每张都有科普按钮',
+    w.document.querySelectorAll('#modal-body .hubcard .wikibtn--mini').length >= 1,
+    w.document.querySelectorAll('#modal-body .hubcard .wikibtn--mini').length + ' 个');
+  dbg.closeModal();
+  await new Promise(r=>setTimeout(r,200));
+
+  /* --- 改良卡 --- */
+  dbg.openCardHub('improve');
+  await new Promise(r=>setTimeout(r,250));
+  ts = w.document.querySelectorAll('#modal-body .tribestat .ts-cell');
+  check('改良卡：首行4 个部落统计格', ts.length === 4, ts.length + ' 个');
+  check('改良卡：长安部落 2 张 / 丝绸部落 1 张',
+    [...ts].map(e => Number(e.querySelector('.ts-n').textContent)).join('/') === '2/0/1/0',
+    [...ts].map(e => e.querySelector('.ts-n').textContent).join('/'));
+  check('改良卡：小节标题带该部落的增益百分比',
+    /增益 \+12%/.test(w.document.querySelector('#modal-body .tbh').textContent),
+    w.document.querySelector('#modal-body .tbh').textContent.replace(/\s+/g, ' ').trim());
+  dbg.closeModal();
+  await new Promise(r=>setTimeout(r,200));
+
+  // 还原，别污染后续用例
+  ps[0].weatherCards = []; ps[2].weatherCards = [];
+  ps[0].hand = []; ps[2].hand = [];
+ } catch(err) { check('第22 节无异常', false, (err && err.message) || String(err)); }
+}
+
+say('\n=== 23. 竖列已挪到地图左侧 ===');
+{
+  const col = w.document.querySelector('.legend-col');
+  const bw = w.document.getElementById('board-wrap');
+  const cr = col.getBoundingClientRect(), br = bw.getBoundingClientRect();
+  /* 竖列是 position:absolute;left:10px 相对 stage 的 padding box，
+     而 stage 有 14px padding —— 实测间距 = 14 - 10 = 4px 上下浮动（会受
+     竖列自身边框/缩放影响），所以阈值放到 20px，只要「明显靠左」就过。 */
+  check('竖列左边缘贴近舞台左边',
+    cr.left - w.document.getElementById('stage').getBoundingClientRect().left <= 20,
+    Math.round(cr.left - w.document.getElementById('stage').getBoundingClientRect().left) + 'px');
+  check('图板在竖列右侧且不重叠', br.left - cr.right >= 20,
+    `间隙 ${Math.round(br.left - cr.right)}px`);
+  /* 右侧新增了 AI 新手教程「小禾」列（≥1500px 常驻预留，见 src/aihelper.js）。
+     图板因此让位收窄：1600 宽下实测约 608px（旧基线 896px 是「无助手列」时的值）。
+     这里锁住「图板仍占据舞台绝大部分可用宽度」，防止后续改动把它压得更扁。 */
+  check('图板宽度未被挤扁（预留 AI 列后 ≥ 560px）',
+    br.width >= 560, Math.round(br.width) + 'px');
+}
+
+say('\n=== 23b. AI 新手教程列停靠在最右侧 ===');
+{
+  const d = w.document;
+  const side = d.getElementById('sidepanel');
+  /* ⚠️ 2026-10-18 修（两条都曾是恒 FAIL）：
+     ① 原本查 `#aihelper .ai-slot` —— aihelper.js 只在**用户打开手册后**
+        才渲染那个 slot，冷启动时它不存在 → slot=null → 恒 FAIL。
+     ② 本节的判据不能按 `innerWidth >= 1500` 推断「应该是哪种形态」——
+        #aihelper 的两套规则是 `min-width:1500px`（右侧竖列 flex）
+        与 `max-width:1499.98px`（底部抽屉 block），
+        而 iframe 的 CSS 视口比无头窗口窄一点（实测 innerWidth=1500
+        却命中了 max-width 那条，display=block）。
+        所以这里**一律读实际 display**，再据此判断该形态下应满足什么。
+     这才是本节真正要守的不变量：不重叠、不越界、形态与 CSS 一致。 */
+  const ah = d.getElementById('aihelper');
+  const cs = w.getComputedStyle(ah);
+  const sr = side.getBoundingClientRect();
+  const ar = ah.getBoundingClientRect();
+  const disp = cs.display;
+  const sideCol = disp === 'flex';       // 右侧竖列（宽屏）
+  const drawer  = disp === 'block';      // 底部抽屉（窄屏）
+  check('AI 助手容器存在且形态合法（none/flex/block 三选一）',
+    !!ah && ['none','flex','block'].includes(disp), `display=${disp}`);
+  check('AI 竖列形态下位于日志列右侧（不重叠）',
+    !sideCol || ar.left >= sr.right - 1,
+    sideCol ? `AI左${Math.round(ar.left)} / 日志右${Math.round(sr.right)}` : `display=${disp}`);
+  check('AI 抽屉形态下横贯底部（left=0 且铺满宽）',
+    !drawer || (Math.abs(ar.left) <= 2 && ar.width >= w.innerWidth - 2),
+    drawer ? `left=${Math.round(ar.left)} w=${Math.round(ar.width)} / vw=${w.innerWidth}`
+            : `display=${disp}`);
+  check('AI 列在视口内（右缘不越界）',
+    disp === 'none' || ar.right <= w.innerWidth + 1,
+    disp === 'none' ? '已收起'
+      : `${Math.round(ar.left)}~${Math.round(ar.right)} / ${w.innerWidth}`);
+}
+
+say('\n=== 24. 图鉴（全量卡牌参考书）===');
+{
+ try {
+  const dbg = w.__game.debug;
+  const ps = w.__game.state.players;
+  const T = w.__game.TRACK;
+  /* 故意只给前三个部落发牌，第四个空着 —— 验证「无人持有也照样列出」。
+     必须先清空所有部落的 seeds：开局 dealSeedCards 发的 2 张基础卡
+     会让「有几张卡被持有」随发牌结果浮动。 */
+  ps.forEach(p => { p.seeds = {}; p.hand = []; p.weatherCards = []; });
+  ps[0].seeds = { yumi: 2 };
+  ps[1].seeds = { shuidao: 3 };
+  ps[1].weatherCards = ['w1'];
+  ps[2].hand = ['cetu'];
+
+  const EXPECT = { crop: 10, weather: 6, improve: 12, land: 11, station: 5 };
+  const NAMES = ['作物卡', '气象卡', '改良卡', '土地', '站点'];
+
+  /* --- 五个页签各自都要列出全量 --- */
+  for (const tab of ['crop', 'weather', 'improve', 'land', 'station']) {
+    dbg.openHandbook(tab);
+    await new Promise(r=>setTimeout(r,300));
+    const cards = d.querySelectorAll('#modal-body .hbcard').length;
+    check(`图鉴「${NAMES[[ 'crop','weather','improve','land','station' ].indexOf(tab)]}」列出全部 ${EXPECT[tab]} 张`,
+      cards === EXPECT[tab], cards + ' 张');
+    const on = d.querySelector('#modal-body .hb-tab.on');
+    check(`图鉴打开时「${NAMES[[ 'crop','weather','improve','land','station' ].indexOf(tab)]}」页签高亮`,
+      on && on.dataset.hb === tab, on ? on.dataset.hb : '无高亮');
+  }
+
+  /* --- 关键：没人持有的卡也必须列出 --- */
+  dbg.openHandbook('crop');
+  await new Promise(r=>setTimeout(r,300));
+  const total = d.querySelectorAll('#modal-body .hbcard').length;
+  /* 被持有的「卡种数」从状态反算，别写死 —— 开局还会发基础种子卡，
+     写死期望值会跟发牌结果打架（之前就因此误判成 FAIL）。 */
+  const heldKinds = new Set();
+  ps.forEach(p => Object.keys(p.seeds || {}).forEach(k => heldKinds.add(k)));
+  const heldCards = d.querySelectorAll('#modal-body .hb:not(.none)').length;
+  check('作物图鉴 10 张全列（不论有无持有）', total === 10, total + ' 张');
+  check('每张卡都有「持有」标注行',
+    d.querySelectorAll('#modal-body .hbcard figcaption .hb').length === 10,
+    d.querySelectorAll('#modal-body .hbcard figcaption .hb').length + ' 行');
+  check('无人持有的卡标为「当前无人持有」而非隐藏',
+    d.querySelectorAll('#modal-body .hb.none').length === 10 - heldKinds.size,
+    `${d.querySelectorAll('#modal-body .hb.none').length} 张无人持有 / 共 ${heldKinds.size} 种被持有`);
+  check('有持有的卡显示了部落名徽章',
+    heldCards === heldKinds.size &&
+    [...d.querySelectorAll('#modal-body .hb:not(.none) .hb-tag')].some(t => /(长安|古蜀|丝绸|燕都)部落/.test(t.textContent)),
+    [...d.querySelectorAll('#modal-body .hb:not(.none)')].map(e => e.textContent.replace(/\s+/g,' ').trim()).join(' / '));
+
+  /* --- 数据字典要素：折叠的各土壤收益表 --- */
+  check('作物卡带各土壤净收益表（折叠）',
+    d.querySelectorAll('#modal-body .hb-detail').length === 10 &&
+    d.querySelectorAll('#modal-body .hb-table tr').length >= 10,
+    d.querySelectorAll('#modal-body .hb-detail').length + ' 个折叠区');
+  check('每张作物卡有科普链接',
+    d.querySelectorAll('#modal-body .hbcard .wikibtn--mini').length === 10,
+    d.querySelectorAll('#modal-body .hbcard .wikibtn--mini').length + ' 个');
+  check('说明文字强调「与谁持有无关」',
+    /与谁持有无关/.test(d.getElementById('modal-body').textContent));
+
+  /* --- 改良卡页：应显示各部落当前增益 --- */
+  dbg.openHandbook('improve');
+  await new Promise(r=>setTimeout(r,300));
+  const ih = d.getElementById('modal-body').textContent;
+  check('改良卡页列出各部落当前增益', /张 → \+\d+%/.test(ih),
+    (ih.match(/D?\.? ?[A-D] 部落 \d+ 张 → \+\d+%/) || [''])[0]);
+  check('改良卡页全 12 张',
+    d.querySelectorAll('#modal-body .hbcard').length === 12,
+    d.querySelectorAll('#modal-body .hbcard').length + ' 张');
+
+  /* --- 土地页：应显示高收益作物标签 + 持有情况 --- */
+  dbg.openHandbook('land');
+  await new Promise(r=>setTimeout(r,300));
+  check('土地页 11 种全列',
+    d.querySelectorAll('#modal-body .hbcard').length === 11,
+    d.querySelectorAll('#modal-body .hbcard').length + ' 种');
+  check('土地卡列出高收益作物标签',
+    d.querySelectorAll('#modal-body .hb-crop').length > 0,
+    d.querySelectorAll('#modal-body .hb-crop').length + ' 个标签');
+  check('图鉴说明与「付费土壤检测」做了区分',
+    /公开信息/.test(d.getElementById('modal-body').textContent));
+
+  /* --- 站点页：应含赛道构成统计 --- */
+  dbg.openHandbook('station');
+  await new Promise(r=>setTimeout(r,300));
+  const sh = d.getElementById('modal-body').textContent.replace(/\s+/g,' ');
+  check('站点页 5 个站点', d.querySelectorAll('#modal-body .hbcard.st').length === 5,
+    d.querySelectorAll('#modal-body .hbcard.st').length + ' 个');
+  /* 正则里不要拼 \s —— 会被外层脚本的字符串转义吃掉。
+     直接在归一化后的文本里找字面片段。 */
+  check('站点页给出赛道构成统计',
+    sh.includes('land ×') && sh.includes('赛道共 ' + T.length),
+    (sh.match(/构成：[^。]{0,64}/) || [''])[0].trim());
+
+  /* --- 页签可点击切换 --- */
+  dbg.openHandbook('crop');
+  await new Promise(r=>setTimeout(r,300));
+  const wxTab = d.querySelector('#modal-body .hb-tab[data-hb=weather]');
+  wxTab.click();
+  await new Promise(r=>setTimeout(r,300));
+  check('点页签能切换到气象卡',
+    d.querySelector('#modal-body .hb-tab.on').dataset.hb === 'weather' &&
+    d.querySelectorAll('#modal-body .hbcard').length === 6,
+    d.querySelectorAll('#modal-body .hbcard').length + ' 张');
+
+  /* --- 顶栏入口 --- */
+  check('顶栏有「图鉴」按钮', !!d.getElementById('btn-handbook'),
+    d.getElementById('btn-handbook') ? d.getElementById('btn-handbook').textContent.trim() : '无');
+  d.getElementById('modal-close').click();
+  await new Promise(r=>setTimeout(r,200));
+  d.getElementById('btn-handbook').click();
+  await new Promise(r=>setTimeout(r,350));
+  /* 刚才页签停在 weather，所以这条同时验证「从顶栏打开会回到第一页」——
+     hbTab 是模块级变量，如果 openHandbook 不重置，按钮看起来就是坏的。 */
+  check('点顶栏「图鉴」打开的是第一页（作物卡），不是上次看的页签',
+    d.getElementById('modal').hidden === false &&
+    d.querySelector('#modal-body .hb-tab.on').dataset.hb === 'crop' &&
+    d.querySelectorAll('#modal-body .hbcard').length === 10,
+    '高亮=' + (d.querySelector('#modal-body .hb-tab.on')||{dataset:{}}).dataset.hb +
+    ' / ' + d.querySelectorAll('#modal-body .hbcard').length + ' 张卡片');
+  d.getElementById('modal-close').click();
+  await new Promise(r=>setTimeout(r,200));
+
+  // 还原
+  ps[0].seeds = {}; ps[1].seeds = {}; ps[2].seeds = {};
+  ps[0].hand = []; ps[2].hand = [];
+  ps[1].weatherCards = [];
+ } catch(err) { check('第24 节无异常', false, (err && err.message) || String(err)); }
+}
+
+say('\n=== 25. 电脑行动提示窗不遮挡棋盘 ===');
+{
+ try {
+  const dbg = w.__game.debug;
+  /* 直接调 showWaiting 的效果：走真实路径成本高，这里改为
+     切单机 + 让真人回合结束，AI 一跑起来提示窗就会显示。 */
+  w.__game.setMode('solo');
+  w.__game.setSeat(0);
+  w.__game.newGame();
+  await new Promise(r=>setTimeout(r,600));
+
+  const waitEl = d.getElementById('waiting');
+  check('存在 #waiting 提示窗容器', !!waitEl);
+
+  // 直接触发（runAiTurn 会调 showWaiting），跑一步就好
+  dbg.runAiTurn();
+  await new Promise(r=>setTimeout(r,900));
+  check('电脑行动时提示窗可见', waitEl.hidden === false);
+
+  const cs = getComputedStyle(waitEl);
+  /* 核心要求：不能有半透明底色，也不能有背景模糊 ——
+     否则棋盘被糊掉，看不见电脑在干什么。 */
+  const bg = cs.backgroundColor;
+  const alpha = /rgba?\(([^)]+)\)/.exec(bg);
+  const a = alpha ? (alpha[1].split(',').map(x=>parseFloat(x))[3] ?? 1) : 1;
+  check('提示窗层没有半透明底色（棋盘必须可见）', a === 0, `${bg} → alpha=${a}`);
+  check('提示窗层没有背景模糊', !/blur/.test(cs.backdropFilter || 'none'),
+    cs.backdropFilter || 'none');
+
+  // 小窗本体要紧凑，不能占满舞台
+  const box = waitEl.querySelector('.wait-box');
+  const bw = box.getBoundingClientRect();
+  const st = d.getElementById('stage').getBoundingClientRect();
+  check('提示小窗尺寸紧凑（≤ 300×140）',
+    bw.width <= 300 && bw.height <= 140,
+    `${Math.round(bw.width)}×${Math.round(bw.height)}`);
+  check('小窗面积远小于棋盘（不挡路）',
+    (bw.width * bw.height) < (st.width * st.height) * 0.05,
+    `小窗占舞台 ${((bw.width*bw.height)/(st.width*st.height)*100).toFixed(1)}%`);
+
+  /* 内容：部落名 + 当前动作。
+     部落名不写死 —— dbg.runAiTurn() 直调时 turn 可能还是 0（A 部落），
+     单机模式下它并不是 AI，所以这里只断言「显示的是某个部落 + 动作词」。 */
+  const txt = box.textContent.replace(/\s+/g, ' ').trim();
+  check('小窗显示「X 部落 行动中」',
+    /(长安|古蜀|丝绸|燕都)部落 行动中/.test(txt) && /(思考中|掷骰|行军|结算|种植|买地|买地|行动中)/.test(txt),
+    txt.slice(0, 40));
+
+  // 遮罩层仍要拦截误点击（透明 ≠ 穿透）
+  const top = d.elementFromPoint(st.left + st.width/2, st.top + 40);
+  check('提示窗显示期间仍拦截点击（元素在 waiting 之下）',
+    top === waitEl || waitEl.contains(top), top ? (top.id || top.className || top.tagName) : 'null');
+
+  /* 回到真人时必须收起。⚠️ 必须**先等这局电脑回合全部走完、交回真人**，
+     再决定要不要重开 —— 直接 newGame 会把在飞的 AI 回合（一堆 await）
+     留在新一局里继续跑，busy 被翻来覆去，污染后面 §29（本轮踩过）。 */
+  const gotHuman25 = await waitHumanTurn(0);
+  check('轮到真人后提示窗收起', gotHuman25 && waitEl.hidden === true,
+    `human=${gotHuman25} hidden=${waitEl.hidden}`);
+
+  // 收尾：等空闲后再回本地对战重开，把单机脏状态清掉留给后面
+  w.__game.setMode('local');
+  w.__game.newGame();
+  await new Promise(r => setTimeout(r, 300));
+ } catch(err) { check('第25 节无异常', false, (err && err.message) || String(err)); }
+}
+
+say('\n=== 26. 图板是两层：原图外圈赛道卡 + 中心新地图 ===');
+{
+ try {
+  /* 结构：#board = 原图（外圈 32 张印刷赛道卡）
+           #board-map = 新图（只盖中间那块地图）
+     换图时只换中间，外圈不动。 */
+  const img = d.getElementById('board');
+  const mp = d.getElementById('board-map');
+  check('外圈底图 = board_full.png（保留原印刷赛道卡）',
+    /board_full\.png$/.test(img.getAttribute('src')), img.getAttribute('src'));
+  check('中心地图 = board_map.png（预裁好的新图）',
+    !!mp && /board_map\.png$/.test(mp.getAttribute('src')),
+    mp ? mp.getAttribute('src') : '元素缺失');
+  check('底图加载成功', img.complete && img.naturalWidth > 0,
+    `${img.naturalWidth}x${img.naturalHeight}`);
+  check('中心地图加载成功', mp && mp.complete && mp.naturalWidth > 0,
+    mp ? `${mp.naturalWidth}x${mp.naturalHeight}` : '—');
+
+  /* BOARD_W/H 决定格子贴片的绘制分辨率。
+     外圈底图换回原图后，必须与常量一致，否则贴片按错基准缩放。 */
+  check('底图原始尺寸 = BOARD_W/H（1963x1482）',
+    img.naturalWidth === 1963 && img.naturalHeight === 1482,
+    `${img.naturalWidth}x${img.naturalHeight}`);
+  check('底图宽高比 = 4:3（格子矩形是按这个比例实测的）',
+    Math.abs(img.naturalWidth / img.naturalHeight - 4 / 3) < 0.01,
+    (img.naturalWidth / img.naturalHeight).toFixed(4));
+
+  /* 中心地图必须落在外圈赛道卡内，不能压到环上的格子。
+     环带内边界实测约 x 0.15~0.865 / y 0.14~0.855。 */
+  const R = (e) => { const r = e.getBoundingClientRect(); return r; };
+  const wr = R(d.getElementById('board-wrap'));
+  const mr = R(mp);
+  const nx0 = (mr.left - wr.left) / wr.width;
+  const nx1 = (mr.right - wr.left) / wr.width;
+  const ny0 = (mr.top - wr.top) / wr.height;
+  const ny1 = (mr.bottom - wr.top) / wr.height;
+  /* 中心空洞由外圈 32 张格子的实测内边界围成：
+     左列右缘 x=0.1528  右列左缘 x=0.8472
+     顶排下缘 y=0.1862  底排上缘 y=0.8138
+     地图必须落在这个洞里，且把旧图中央残留的说明卡完全盖住。 */
+  check('中心地图落在外圈赛道卡以内',
+    nx0 > 0.152 && nx1 < 0.848 && ny0 > 0.186 && ny1 < 0.814,
+    `x ${nx0.toFixed(3)}~${nx1.toFixed(3)}  y ${ny0.toFixed(3)}~${ny1.toFixed(3)}`);
+  check('中心地图覆盖足够面积（不能缩成一小块）',
+    (nx1 - nx0) > 0.60 && (ny1 - ny0) > 0.55,
+    `宽 ${(nx1 - nx0).toFixed(3)} 高 ${(ny1 - ny0).toFixed(3)}`);
+  /* object-fit 必须是 fill：新图比例 1.48 与空洞 1.11 不同，
+     cover 会按宽铺满、上下留空，旧图中央的说明卡会从缝里露出来。 */
+  check('中心地图用 object-fit:fill（不留缝、不露旧内容）',
+    getComputedStyle(mp).objectFit === 'fill', getComputedStyle(mp).objectFit);
+  const z = (n) => parseInt(getComputedStyle(d.getElementById(n)).zIndex || '0', 10);
+  check('格子层在中心地图之上（贴片不被遮）', z('cells') > z('board-map'),
+    `cells z=${z('cells')} / map z=${z('board-map')}`);
+  check('棋子层在中心地图之上', z('pawns') > z('board-map'),
+    `pawns z=${z('pawns')}`);
+  check('中心地图不吃点击（格子仍可点）',
+    getComputedStyle(mp).pointerEvents === 'none',
+    getComputedStyle(mp).pointerEvents);
+
+  /* 中心换成地图后不再绘制牌位牌（与地图空间冲突） */
+  check('不再画中央牌位牌', d.querySelectorAll('#slots .slot').length === 0,
+    d.querySelectorAll('#slots .slot').length + ' 个');
+
+  /* 格子是半透明纸底，地图要能透出来 */
+  const cell0 = d.querySelector('#cells .cell');
+  const bgi = cell0 && getComputedStyle(cell0).backgroundImage;
+  check('赛道格贴片已绘制', !!bgi && bgi !== 'none',
+    bgi ? bgi.slice(0, 30) + '…' : '无背景');
+
+  /* 32 个格子都在图内，且互不重叠太多 */
+  const cells = [...d.querySelectorAll('#cells .cell')];
+  check('32 个格子全部渲染', cells.length === 32, cells.length + ' 个');
+  const wrap = d.getElementById('board-wrap').getBoundingClientRect();
+  const out = cells.filter(c => {
+    const r = c.getBoundingClientRect();
+    return r.left < wrap.left - 2 || r.right > wrap.right + 2
+        || r.top < wrap.top - 2 || r.bottom > wrap.bottom + 2;
+  });
+  check('格子全部落在图板范围内（不越界）', out.length === 0,
+    out.length ? out.length + ' 个越界' : '32 格在内');
+ } catch(err) { check('第26 节无异常', false, (err && err.message) || String(err)); }
+}
+
+say('\n=== 27. 赛道严格顺时针、无跳跃 ===');
+{
+ try {
+  const TRACK = w.__game.TRACK;
+  const posMod = await import('/src/cellPositions.js');
+  const POS = posMod.CELL_POS;
+
+  check('TRACK 与 CELL_POS 长度一致', TRACK.length === POS.length,
+    TRACK.length + ' vs ' + POS.length);
+
+  /* 邻接性：每步位移必须 < 0.30（实测正常 0.086~0.143，
+     断裂时 0.855 —— 差8 倍）。这道断言专门拦「横穿图板」。 */
+  const bad = [];
+  let maxStep = 0;
+  for (let i = 0; i < TRACK.length; i++) {
+    const j = (i + 1) % TRACK.length;
+    const dx = POS[j][0] - POS[i][0], dy = POS[j][1] - POS[i][1];
+    const L = Math.hypot(dx, dy);
+    maxStep = Math.max(maxStep, L);
+    if (L > 0.30) bad.push(`${i}->${j}=${L.toFixed(3)}`);
+  }
+  check('每步位移都 ≤0.30（绝不横穿图板）', bad.length === 0,
+    bad.length ? bad.join(', ') : '最大步长 ' + maxStep.toFixed(3));
+
+  /* 顺时针：底边向左 / 左边向上 / 顶边向右 / 右边向下。
+     判据= 方向序列里不能出现「反向」，转角恰好 4 次。 */
+  const dirOf = (i, j) => {
+    const dx = POS[j][0] - POS[i][0], dy = POS[j][1] - POS[i][1];
+    return Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'L' : 'R') : (dy < 0 ? 'U' : 'D');
+  };
+  const dirs = [];
+  for (let i = 0; i < TRACK.length; i++) dirs.push(dirOf(i, (i + 1) % TRACK.length));
+  const OPP = { L: 'R', R: 'L', U: 'D', D: 'U' };
+  const folds = [];
+  for (let i = 0; i < dirs.length; i++) {
+    if (dirs[i] === OPP[dirs[(i - 1 + dirs.length) % dirs.length]]) {
+      folds.push(`${(i - 1 + dirs.length) % dirs.length}->${i}->${(i + 1) % dirs.length}`);
+    }
+  }
+  check('全程顺时针，无回头折返', folds.length === 0,
+    folds.length ? folds.join(', ') : dirs.slice(0, 12).join(''));
+
+  let turns = 0;
+  for (let i = 0; i < dirs.length; i++) if (dirs[i] !== dirs[(i + 1) % dirs.length]) turns++;
+  check('恰好 4 个转角', turns === 4, turns + ' 个');
+
+  /* 四个转角的格子内容要与底图一致 */
+  check('左下角（idx9）是种子集市，idx10 转入左边',
+    TRACK[9].kind === 'zhongzi' && POS[9][0] < 0.10 && POS[10][0] < 0.10,
+    `9=${TRACK[9].kind} (${POS[9][0].toFixed(3)},${POS[9][1].toFixed(3)}) / 10=(${POS[10][0].toFixed(3)},${POS[10][1].toFixed(3)})`);
+  check('左上角（idx16）是监狱，紧接左边顶端',
+    TRACK[16].kind === 'jianyu' && POS[15][0] < 0.10 && POS[16][0] < 0.10,
+    `15=(${POS[15][0].toFixed(3)},${POS[15][1].toFixed(3)}) / 16=${TRACK[16].kind}`);
+  check('右上角（idx25）是种子集市，紧接右边顶端',
+    TRACK[25].kind === 'zhongzi' && POS[25][0] > 0.90 && POS[26][0] > 0.90,
+    `25=${TRACK[25].kind} (${POS[25][0].toFixed(3)},${POS[25][1].toFixed(3)}) / 26=(${POS[26][0].toFixed(3)},${POS[26][1].toFixed(3)})`);
+
+  /* 实际走一圈：位移后的落点必须逐格连续（引擎侧 stepMove 的 passed 数组） */
+  const engTK = await import('/src/engine.js');
+  const gTK = engTK.initGame(1);
+  const pTK = gTK.players[0];
+  pTK.pos = 8;                       // 底边中段
+  const mv = engTK.stepMove(gTK, 4);// 跨过左下转角，走到左边
+  check('跨转角行走时逐格经过每一格（4 步 = 4 个落点）',
+    Array.isArray(mv.passed) && mv.passed.length === 4,
+    'passed=' + JSON.stringify(mv.passed));
+  const hops = mv.passed.map((idx, k) => {
+    const prev = k === 0 ? 8 : mv.passed[k - 1];
+    return Math.hypot(POS[idx][0] - POS[prev][0], POS[idx][1] - POS[prev][1]);
+  });
+  check('跨转角的每一步也是相邻格（无跳跃）',
+    hops.every(L => L <= 0.30), '步长 ' + hops.map(x => x.toFixed(3)).join(' / '));
+  pTK.pos = 0;
+ } catch(err) { check('第26 节无异常', false, (err && err.message) || String(err)); }
+}
+
+say('\n=== 28. 没有种子就不能种（硬门槛）===');
+{
+ try {
+  const st = w.__game.state;
+  const eng = await import('/src/engine.js');
+  const TRACK = w.__game.TRACK;
+  const li = TRACK.findIndex(c => c.kind === 'land');
+  const soil = TRACK[li].soilId;
+  // 用一块肥料充足的地，排除「容量不够」这个干扰因素
+  const p = st.players[0];
+  p.pos = li;
+  p.money = 5000;
+  st.landOwners[li] = p.tid;
+  p.lands[li] = { soilId: soil, crops: [] };
+
+  /* ---- 引擎层：没有种子必须拒绝，且不扣钱、不长苗 ---- */
+  p.seeds = {};
+  const m0 = p.money;
+  const rNo = eng.plant(st, p, li, 'yumi');
+  check('引擎：无种子时拒绝种植', !rNo.ok, rNo.msg || '(竟然种成功了)');
+  check('引擎：拒绝时标记 noSeed', rNo.noSeed === true, String(rNo.noSeed));
+  check('引擎：拒绝时不扣钱', p.money === m0, `${m0} → ${p.money}`);
+  check('引擎：拒绝时地里不长苗', p.lands[li].crops.length === 0,
+    p.lands[li].crops.length + ' 片');
+
+  /* ---- 有种子才放行，并消耗 1 张 ---- */
+  p.seeds = { yumi: 2 };
+  const rYes = eng.plant(st, p, li, 'yumi');
+  check('引擎：有种子时可以种', rYes.ok, rYes.msg || '');
+  check('引擎：种植消耗 1 张种子', p.seeds.yumi === 1, 'yumi=' + p.seeds.yumi);
+  check('引擎：种植不再另扣种子钱（买卡时已付）', rYes.cost === 0, 'cost=' + rYes.cost);
+  const afterPlant = p.money;
+  check('引擎：种植不扣钱', afterPlant === m0, `${m0} → ${afterPlant}`);
+  eng.harvest(st, p, li);
+
+  /* ---- UI 层：无种子的卡置灰+ 打「无种子」标记 ---- */
+  /* 必须先把面板主人钉在座位 0：local 模式 viewMe() = 当前行动者，
+     而上一节 §25 的 newGame() 会把 turn 归 0、行动者 = order[0]（随机）。
+     新规则「只能给脚下的地种植」下，若 viewMe() 不是座位 0，
+     me.pos ≠ li 直接早退 → 弹层列不出作物（3 条断言误红）。
+     同一模式见 §27 / 本节上方两个种植弹层块。 */
+  w.__game.debug.setActor(0);
+  st.players[0].pos = li;
+  w.__game.debug.openPlantModal(li);
+  await new Promise(r=>setTimeout(r,450));
+  const figs = [...w.document.querySelectorAll('#modal-body #croppick figure')];
+  check('UI：选种弹层列出全部作物', figs.length >= 10, figs.length + ' 张');
+  const noSeedFigs = figs.filter(f => f.classList.contains('noseed'));
+  const seedFigs = figs.filter(f => !f.classList.contains('noseed'));
+  check('UI：无种子的作物被标记 noseed', noSeedFigs.length > 0,
+    noSeedFigs.length + ' 张标记');
+  check('UI：有种子的作物可点', seedFigs.length > 0, seedFigs.length + ' 张可种');
+  check('UI：noseed 卡片不可点（cursor not-allowed）',
+    noSeedFigs.every(f => /not-allowed/.test(f.style.cursor)),
+    noSeedFigs[0] ? noSeedFigs[0].style.cursor : '—');
+  check('UI：noseed 卡片有「无种子 · 不可种」文案',
+    noSeedFigs.every(f => /无种子/.test(f.textContent)),
+    noSeedFigs[0] ? noSeedFigs[0].textContent.replace(/\s+/g,' ').match(/无种子[^沃]*/)?.[0] || '(缺)' : '—');
+  check('UI：有种子的卡片写明「消耗 1 张种子」',
+    seedFigs.every(f => /消耗\s*1\s*张种子/.test(f.textContent)),
+    seedFigs[0] ? seedFigs[0].textContent.replace(/\s+/g,' ').slice(0, 40) : '—');
+  w.document.getElementById('modal-close').click();
+  await new Promise(r=>setTimeout(r,200));
+
+  /* ---- 回归（用户实测 BUG）：地有 2 个空位、手里**两种不同类型种子各 1 张**，
+         两张卡都该能种（各少种成 1 片），而不是被判「无法种植」。 ---- */
+  const sd2 = TRACK.findIndex(c => c.kind === 'land' && c.soilId === 'shandong'); // 中肥力 = 2 片
+  if (sd2 >= 0) {
+    w.__game.debug.setActor(0);
+    st.players[0].pos = sd2;
+    st.landOwners[sd2] = st.players[0].tid;
+    st.players[0].lands[sd2] = { soilId: 'shandong', crops: [] };
+    st.players[0].seeds = { yumi: 1, shuidao: 1 };
+    w.__game.debug.openPlantModal(sd2);
+    await new Promise(r=>setTimeout(r,420));
+    const f2 = [...w.document.querySelectorAll('#modal-body #croppick figure')];
+    const yFig = f2.find(f => f.dataset.crop === 'yumi');
+    const sFig = f2.find(f => f.dataset.crop === 'shuidao');
+    check('回归：两种不同种子各 1 张 → 两张卡都判为可种（不是无种子）',
+      !!yFig && !!sFig && !yFig.classList.contains('noseed') && !sFig.classList.contains('noseed'),
+      `yumi=${yFig ? yFig.className : '?'}｜shuidao=${sFig ? sFig.className : '?'}`);
+    check('回归：本次按手中种子数少种 1 片（不要求凑满 2 片）',
+      !!yFig && /本次种 1 片/.test(yFig.textContent),
+      yFig ? yFig.textContent.replace(/\s+/g,' ').slice(0, 60) : '—');
+    const my0 = st.players[0].money;
+    if (yFig) yFig.querySelector('img[data-crop]').click();
+    await new Promise(r=>setTimeout(r,320));
+    check('回归：点其中一张能真的种下 1 片（不扣钱）',
+      st.players[0].lands[sd2].crops.length === 1 && st.players[0].money === my0,
+      `crops=${st.players[0].lands[sd2].crops.length}｜money ${my0}→${st.players[0].money}`);
+    try { w.document.getElementById('modal-close').click(); } catch (e) {}
+    await new Promise(r=>setTimeout(r,200));
+    delete st.players[0].lands[sd2];
+    st.landOwners[sd2] = null;
+  }
+
+  // 还原
+  delete p.lands[li];
+  st.landOwners[li] = null;
+ } catch(err) { check('第28 节无异常', false, (err && err.message) || String(err)); }
+}
+
+say('\n=== 29. 面板/弹层的玩家归属：viewMe() 而非 G.turn ===');
+{
+ try {
+  /* 这组断言针对两个真实 bug：
+     ① 单机模式选了非 A 部落时，点「种植」毫无反应
+        —— openPlantModal 用 G.players[G.turn]（电脑），索引对不上直接 return
+     ② 土地卡的图标 / 卡面完全不能点，只有按钮能点
+        —— 卡片本体从来没绑过点击事件
+     两者都是「玩家看到的是自己那块地，操作的却是别人」这一类错位。 */
+  w.localStorage.setItem('cnvillage.mode.v1', 'solo');
+  w.__game.setMode('solo');
+  w.__game.setSeat(2);                    // 真人坐 C 部落，行动者与之不同
+  w.__game.newGame();
+  /* 新规则：开局行动顺序完全按本局抽签，第一位是电脑就先走。
+     所以必须轮询等轮到真人（座位 2），不能固定 setTimeout。 */
+  await waitHumanTurn(2);
+
+  const gs = w.__game.state;
+  const eng2 = await import('/src/engine.js');
+  const dbg2 = w.__game.debug;
+  const TL = w.__game.TRACK;
+  const li2 = [];
+  TL.forEach((c, i) => { if (c.kind === 'land') li2.push(i); });
+  dbg2.giveLand(2, li2[0]);              // 我的地
+  dbg2.giveLand(0, li2[8]);              // 电脑（A）的地
+  /* 新规则：只能给「脚下」的地种植 —— 让真人站到自己的地上，
+     否则「种植」按钮会（正确地）置灰，下面「种植按钮可用」的断言就失效了。 */
+  gs.players[2].pos = li2[0];
+  dbg2.render();
+  await new Promise(r => setTimeout(r, 300));
+  check('单机模式：真人（座位 2）已轮到行动',
+    w.__game.seat === 2 && gs.order[gs.turn] === 2 && !w.__game.isAI(gs.order[gs.turn]),
+    `seat=${w.__game.seat} turn=${gs.turn} actor=${gs.order[gs.turn]}`);
+
+  const cards2 = [...d.querySelectorAll('#myfarms .farm')];
+  check('面板只列自己的地', cards2.length === 1, cards2.length + ' 张');
+
+  const isOpen = () => !d.getElementById('modal').hidden;
+  const mtitle = () => {
+    const h = d.querySelector('#modal-body h3');
+    return h ? h.textContent.trim() : '';
+  };
+  const closeM = () => d.getElementById('modal-close').click();
+
+  /* ① 整卡可点：图标 / 卡面 都要能打开详情 */
+  cards2[0].querySelector('img').click();
+  await new Promise(r => setTimeout(r, 300));
+  check('点土地卡【图标】能打开详情',
+    isOpen() && /肥力币/.test(mtitle()), mtitle().slice(0, 22));
+  closeM(); await new Promise(r => setTimeout(r, 200));
+
+  cards2[0].querySelector('.fname').click();
+  await new Promise(r => setTimeout(r, 300));
+  check('点土地卡【卡面】能打开详情',
+    isOpen() && /肥力币/.test(mtitle()), mtitle().slice(0, 22));
+  closeM(); await new Promise(r => setTimeout(r, 200));
+
+  /* 开关弹层会触发重渲染，cards2 里的节点已经脱离 DOM ——
+     对脱离节点调 getComputedStyle 只会拿到空字符串。必须重新查询。 */
+  const cardNow = d.querySelector('#myfarms .farm');
+  check('土地卡有整卡可点的光标',
+    !!cardNow && getComputedStyle(cardNow).cursor === 'pointer',
+    cardNow ? getComputedStyle(cardNow).cursor : '重渲染后未重新查询到土地卡');
+
+  /* ② 种植按钮走viewMe()，能正确打开「我的地」的种植弹层 */
+  const pb2 = cards2[0].querySelector('.fbtns .mini');
+  check('种植按钮可用', pb2 && !pb2.disabled, pb2 ? pb2.textContent.trim() : '无');
+  pb2.click();
+  await new Promise(r => setTimeout(r, 350));
+  check('点种植打开的是「我的地」的种植弹层',
+    isOpen() && /在.+种植作物/.test(mtitle()), mtitle().slice(0, 24));
+  closeM(); await new Promise(r => setTimeout(r, 200));
+
+  /* ③ 别人的地：引擎与 UI 双拦，且都有明确提示（不是静默 return） */
+  const mySoil = eng2.landById(TL[li2[0]].soilId).name;
+  const hisSoil = eng2.landById(TL[li2[8]].soilId).name;
+  const rp = eng2.plant(gs, gs.players[2], li2[8], 'yumi');
+  check('引擎拒绝在别人的地种植',
+    !rp.ok && /不属于/.test(rp.msg || ''), rp.msg || '(无提示)');
+  dbg2.openPlantModal(li2[8]);
+  await new Promise(r => setTimeout(r, 300));
+  check('UI 不给别人的地开种植弹层', !isOpen());
+  const logTxt = d.getElementById('log').textContent;
+  check('并给出明确原因（不是静默失败）',
+    logTxt.includes(hisSoil) && /不能在那里种植/.test(logTxt),
+    (logTxt.match(/[^R\d]*不能在那里种植/) || [''])[0].slice(0, 40));
+
+  /* ④ 别人回合：按钮禁用但写明原因，且卡片仍可看详情 */
+  const st2 = w.__game.state;
+  const keepTurn = st2.turn;
+  st2.turn = st2.order.indexOf(0);       // 强行让电脑（座位 0）成为当前行动者
+  dbg2.render();
+  await new Promise(r => setTimeout(r, 250));
+  const cs3 = [...d.querySelectorAll('#myfarms .farm')];
+  const pb3 = cs3[0].querySelector('.fbtns .mini');
+  check('非自己回合时种植按钮禁用', pb3.disabled === true, 'disabled=' + pb3.disabled);
+  check('禁用原因写进了 title（玩家不会误以为卡了）',
+    /回合/.test(pb3.getAttribute('title') || '') &&
+    /查看土地详情/.test(pb3.getAttribute('title') || ''),
+    (pb3.getAttribute('title') || '(无)').split('\n')[0].slice(0, 34));
+  cs3[0].querySelector('img').click();
+  await new Promise(r => setTimeout(r, 300));
+  check('非自己回合仍可点卡片看土地详情', isOpen() && /肥力币/.test(mtitle()),
+    mtitle().slice(0, 22));
+  closeM();
+  st2.turn = keepTurn;
+  dbg2.render();
+  await new Promise(r => setTimeout(r, 200));
+
+  /* 还原成本地对战，别污染后续用例 */
+  w.localStorage.setItem('cnvillage.mode.v1', 'local');
+  w.__game.setMode('local');
+  w.__game.newGame();
+  await new Promise(r => setTimeout(r, 300));
+ } catch(err) { check('第29 节无异常', false, (err && err.message) || String(err)); }
+}
+
+say('\n=== 30. 单机模式 · 追风 / 结束回合 修复回归 ===');
+{
+ try {
+  /* 三个真实 bug（用户实测反馈）：
+     ① 丝绸部落首回合：追风弹层的按钮被 busy 误禁用 → promise 永不 resolve，
+        棋子不动、追风点不动。
+     ② 落在站点格时动作框整个不弹（没有「结束回合」出口），看着像卡住。
+     ③ 买地 / 种植 / 收获 / 弃卡后重画动作框时把「结束回合」按钮丢了。
+     ⚠️ 无头环境虚拟时间会把 setTimeout 压缩，busy 锁与动画 sleep 会打架，
+     所以这里**只断言状态与按钮**，不依赖「动画跑完」的时序（见文件头 §3 说明）。 */
+  w.localStorage.setItem('cnvillage.mode.v1','solo');
+  w.__game.setMode('solo');
+  w.__game.setSeat(2);                       // 真人 = 丝绸部落（座位 2，有追风特长）
+  w.__game.newGame();
+  /* 新规则：开局按本局抽签顺序行动，可能电脑先手 —— 等轮到真人再测追风 */
+  await waitHumanTurn(2);
+  const gs3 = w.__game.state;
+  const bx = () => {
+    const b = d.getElementById('actionbox');
+    const bs = [...d.querySelectorAll('#actions button')];
+    return { hidden:b.hidden, hasEnd:bs.some(x=>/结束回合/.test(x.textContent)),
+             allEnabled:bs.length>0 && bs.every(x=>!x.disabled), n:bs.length };
+  };
+  const waitIdle = async () => {
+    for(let i=0;i<60;i++){ await new Promise(r=>setTimeout(r,300)); if(!w.__game.busy) return true; }
+    return false;
+  };
+
+  check('单人模式真人=丝绸部落且轮到真人',
+    gs3.order[gs3.turn]===2 && !w.__game.isAI(2), `actor=${gs3.order[gs3.turn]}`);
+  check('回合开始不摆操作框（避免没有出口的旧操作）', bx().hidden===true);
+
+  /* ① 掷骰 → 追风弹层必须出现且按钮可点（不 await doRoll，避免虚拟时间下悬挂） */
+  w.__game.debug.doRoll();
+  let zf=null;
+  for(let i=0;i<40 && !zf;i++){
+    await new Promise(r=>setTimeout(r,200));
+    zf=[...d.querySelectorAll('#actions button')].find(b=>/追风/.test(b.textContent));
+  }
+  check('丝绸首回合弹出追风决策', !!zf,
+    zf ? zf.textContent.replace(/\s+/g,' ').trim().slice(0,20) : '未弹出');
+  check('追风按钮可点（busy 未误禁用）', !!zf && !zf.disabled,
+    zf ? 'disabled='+zf.disabled : '—');
+  /* 点「追风」：onClick 会同步扣掉追风机会 —— 用它证明按钮**真的可点**，
+     而不只是 disabled=false（这是 bug ① 的核心：旧代码按钮灰着，点了没反应）。 */
+  if(zf){
+    const before = gs3.players[2].extraRollLeft;
+    zf.click();
+    check('点追风即时生效（按钮真的可点，流程未悬挂）',
+      gs3.players[2].extraRollLeft === before - 1,
+      `extraRollLeft ${before} → ${gs3.players[2].extraRollLeft}`);
+  }
+  await waitIdle();
+
+  /* ② 站点格：没有任何操作，也必须给「结束回合」出口 */
+  const TL3 = w.__game.TRACK;
+  const stIdx = TL3.findIndex(c=>c.kind==='qixiang');
+  gs3.players[2].pos = stIdx;
+  const rawActs = w.__game.debug.landActions();
+  const fullActs = w.__game.debug.postMoveActions();
+  check('站点格确实没有可执行操作', rawActs.length===0, rawActs.length+' 条');
+  check('站点格仍给「结束回合」出口',
+    fullActs.some(a=>/结束回合/.test(a.label)), fullActs.map(a=>a.label).join(' / '));
+
+  /* ③ 买地后重画动作框，不能把出口丢掉 */
+  /* 电脑可能已在先手回合里买走第一块地（新规则：开局可能电脑先手），
+     必须挑一块此刻仍无主的地，否则动作框里根本没有「购入」按钮。 */
+  const li3 = TL3.findIndex((c,i)=>c.kind==='land' && !gs3.landOwners[i]);
+  gs3.players[2].pos = li3;
+  gs3.players[2].money = 600;
+  w.__game.debug.setActor(2);                // 确保轮到真人（doRoll 后可能已换手）
+  await waitIdle();
+  await new Promise(r=>setTimeout(r,500));
+  w.__game.debug.render();
+  w.__game.debug.showActions('t', w.__game.debug.postMoveActions());
+  const buyBtn = [...d.querySelectorAll('#actions button')]
+    .find(b=>/购入/.test(b.textContent) && !b.disabled);
+  check('轮到真人时空闲，买地按钮可用', !!buyBtn,
+    buyBtn ? buyBtn.textContent.replace(/\s+/g,' ').trim().slice(0,18) : `busy=${w.__game.busy}`);
+  if(buyBtn) buyBtn.click();
+  /* 买地是异步流程（重画动作框 + 可能的动画）。固定 400ms 在无头虚拟时间下
+     会偶发量到「刚被隐藏、还没重画出来」的中间态（正好违背本节开头的告诫：
+     不依赖动画跑完的时序）。改成轮询等它现身，最多等 ~8s。 */
+  for(let i=0;i<32 && bx().hidden;i++){ await new Promise(r=>setTimeout(r,250)); }
+  check('买地后动作框仍含「结束回合」', bx().hasEnd && !bx().hidden,
+    JSON.stringify(bx()));
+
+  /* 还原成本地对战 + 真人座位 0，别污染后续用例与**下一次重跑** */
+  gs3.over = false; gs3.winner = null;
+  w.localStorage.setItem('cnvillage.mode.v1','local');
+  w.localStorage.removeItem('cnvillage.seat.v1');
+  w.__game.setSeat(0);
+  w.__game.setMode('local');
+  w.__game.newGame();
+  await new Promise(r=>setTimeout(r,300));
+ } catch(err){ check('第30 节无异常', false, (err && err.message) || String(err)); }
+}
+
+say('\n=== 31. 重开一局作废在飞的 AI 协程（回合纪元 TURN_EPOCH） ===');
+{
+ try{
+  const dbg = w.__game.debug;
+  /* 单机 + 真人座位 0 + 快速模式（AI 一步 0.6s），便于把旧协程卡在 await 中间 */
+  dbg.setFastMode(true);
+  w.__game.setSeat(0);
+  w.__game.setMode('solo');
+  w.__game.newGame();
+
+  const epoch0 = dbg.turnEpoch;
+  check('newGame() 使回合纪元自增', epoch0 >= 1, `epoch=${epoch0}`);
+
+  /* 等这局空闲（单机开局电脑可能先手，先等它走完交回真人） */
+  let idle = false;
+  for (let i = 0; i < 70; i++) {
+    if (!w.__game.busy) { idle = true; break; }
+    await new Promise(r => setTimeout(r, 200));
+  }
+  check('等到空闲，可发起一次「在飞的 AI 回合」', idle, `busy=${w.__game.busy}`);
+
+  /* 让一个电脑座位开始行动，制造「在飞的旧协程」 */
+  dbg.setActor(1);
+  dbg.runAiTurn();
+  await new Promise(r => setTimeout(r, 120));   // 停在第一个 await（睡 0.6s）里
+  check('AI 回合已启动并在 await 中', w.__game.busy === true, `busy=${w.__game.busy}`);
+
+  /* 关键：AI 协程「飞行中」重开一局，并切成**本地对战**。
+     本地模式没有 AI —— 新一局不会自己跑回合，于是新一局的任何变化
+     都只能来自那条未作废的旧协程（这正是原先的缺陷表现）。 */
+  w.__game.setMode('local');
+  w.__game.newGame();
+  check('重开使纪元再 +1', dbg.turnEpoch === epoch0 + 1, `${epoch0} → ${dbg.turnEpoch}`);
+
+  const gB = w.__game.state;
+  const base = {
+    turn: gB.turn, round: gB.round,
+    logLines: d.getElementById('log').children.length
+  };
+
+  /* 等远超一个 AI 步长的时间（0.6s×4+）——旧协程若未作废，会继续
+     对新一局 stepRoll / nextTurn / 写日志，把 gB 改乱 */
+  await new Promise(r => setTimeout(r, 2600));
+
+  check('旧 AI 协程未推进新一局的行动次序', w.__game.state.turn === base.turn,
+    `turn ${base.turn} → ${w.__game.state.turn}`);
+  check('旧 AI 协程未推进新一局的回合数', w.__game.state.round === base.round,
+    `round ${base.round} → ${w.__game.state.round}`);
+  check('旧 AI 协程未向新一局写日志',
+    d.getElementById('log').children.length === base.logLines,
+    `${base.logLines} → ${d.getElementById('log').children.length}`);
+  check('新一局仍指向同一个状态对象（未被旧协程重开）', w.__game.state === gB);
+  check('切到本地对战后新一局没有残留的 AI 在跑', w.__game.busy === false, `busy=${w.__game.busy}`);
+
+  /* 收尾还原，别污染后续（以及下一次重跑） */
+  w.__game.setSeat(0);
+  w.__game.setMode('local');
+  w.__game.newGame();
+  await new Promise(r => setTimeout(r, 300));
+ } catch(err){ check('第31 节无异常', false, (err && err.message) || String(err)); }
+}
+
+say('\n=== 32. 开局行动顺序弹窗（2026-10-18：顶栏常驻条 → 弹窗） ===');
+{
+ try{
+  const dbg = w.__game.debug;
+  const gate = d.getElementById('ordergate');
+  const strip = d.getElementById('orderstrip');
+  const okBtn = d.getElementById('order-ok');
+  const orderBtn = d.getElementById('btn-order');
+
+  check('存在顺序弹窗 #ordergate', !!gate);
+  check('顺序条 #orderstrip 搬进弹窗但id 不变', !!strip && gate.contains(strip));
+  check('顶栏顺序条已换成按钮 #btn-order', !!orderBtn
+    && !d.querySelector('.round-info .order-strip'));
+  /* ⚠️ 这条是本节最关键的回归锁：
+     .ordergate 自带 display:flex（作者样式）会压过 UA 的 [hidden]{display:none}，
+     漏写 [hidden] 规则时顺序窗会一直铺满全屏、把所有点击吃掉，
+     而控制台一行错都没有。 */
+  check('顺序窗 hidden 时真的不可见（[hidden]{display:none} 生效）',
+    gate.hidden === true && getComputedStyle(gate).display === 'none',
+    `hidden=${gate.hidden} display=${getComputedStyle(gate).display}`);
+
+  w.__game.setMode('local');
+  w.__game.newGame();                    // 无 gate：不该弹
+  check('newGame()（不带 gate）不弹顺序窗', gate.hidden === true);
+
+  dbg.showOrderGate(true);               // 模拟入场弹窗
+  check('showOrderGate(true) 显示顺序窗', gate.hidden === false);
+  const chips = [...strip.querySelectorAll('.os-chip')];
+  check('顺序窗内 4 席', chips.length === 4, `chips=${chips.length}`);
+  check('姓名顺序 = G.order',
+    chips.map(c=>c.textContent.trim()).join('|')
+      === w.__game.state.order.map(s=>w.__game.state.players[s].name).join('|'),
+    chips.map(c=>c.textContent.trim()).join(' → '));
+  check('每席标出「第 N 位」（且不污染 chip 文本）',
+    strip.querySelectorAll('.og-cell').length === 4
+      && strip.querySelectorAll('.og-pos').length === 4
+      && /第 1 位/.test(strip.querySelector('.og-pos').textContent),
+    [...strip.querySelectorAll('.og-pos')].map(x=>x.textContent.trim()).join(' '));
+  check('确认按钮文案随 autoStart 变化',
+    okBtn.textContent.indexOf('开始') >= 0, okBtn.textContent.trim());
+
+  okBtn.click();
+  check('点「知道了，开始」关闭顺序窗', gate.hidden === true);
+
+  dbg.showOrderGate(false);
+  check('手动查看模式按钮文案为「关闭」',
+    okBtn.textContent.trim() === '关闭', okBtn.textContent.trim());
+  okBtn.click();
+
+  /* 收尾 */
+  w.__game.setMode('local');
+  w.__game.newGame();
+  await new Promise(r => setTimeout(r, 250));
+ } catch(err){ check('第32 节无异常', false, (err && err.message) || String(err)); }
+}
+
+say('\n=== 33. 游戏简介卷轴 + 封面底图（2026-10-18） ===');
+{
+ try{
+  /* 这一节跑在「进主体之后」，卷轴与底图都不在开篇里，
+     所以只能查 DOM 结构与 CSS 参数，查不了实际观感（要靠 shots/*.png）。 */
+  const sc = d.getElementById('about-scroll');
+  const bg = d.querySelector('.intro-mapbg');
+  const veil = d.querySelector('.intro-mapveil');
+
+  /* 卷轴：结构 */
+  check('存在卷轴层 #about-scroll', !!sc);
+  check('卷轴默认 hidden 且真的不可见（[hidden]{display:none} 生效）',
+    !!sc && sc.hidden === true && getComputedStyle(sc).display === 'none',
+    sc ? `hidden=${sc.hidden} display=${getComputedStyle(sc).display}` : '-');
+  check('卷轴上下各有一根轴杆',
+    sc.querySelectorAll('.scroll-rod').length === 2);
+  /* 简介文字：三段，必须完整（用户给的文案） */
+  const ps = [...sc.querySelectorAll('.scroll-body p')];
+  check('简介三段齐全', ps.length === 3, `段数=${ps.length}`);
+  const full = ps.map(p=>p.textContent).join('');
+  check('简介含「种菜、农业改良、收获售卖」核心玩法',
+    /种菜/.test(full) && /农业改良/.test(full) && /收获售卖/.test(full), full.slice(0, 30));
+  check('简介含「类大富翁玩法」',
+    /类大富翁玩法/.test(full));
+  check('简介含「抢占肥沃土地 / 规划作物种植 / 收获蔬菜积累财富」',
+    /抢占肥沃土地/.test(full) && /规划作物种植/.test(full)
+    && /收获蔬菜积累财富/.test(full));
+  check('简介含「轻松欢乐的农耕博弈…策略规划和财富增长的乐趣」',
+    /轻松欢乐的农耕博弈/.test(full) && /策略规划和财富增长的乐趣/.test(full));
+  check('卷轴标题为「游戏简介」', sc.querySelector('.scroll-title').textContent.trim() === '游戏简介');
+  /* 动画：三段关键帧都在（开卷 / 文字淡入 / 收卷） */
+  const css = Array.from(w.document.styleSheets)
+    .flatMap(ss => { try { return Array.from(ss.cssRules).map(r=>r.cssText); }
+                     catch(e){ return []; } }).join('\n');
+  check('卷轴有开卷关键帧 scrollOpenPaper', /@keyframes\s+scrollOpenPaper/.test(css));
+  check('卷轴有文字淡入关键帧 scrollInkIn', /@keyframes\s+scrollInkIn/.test(css));
+  check('卷轴有收卷关键帧 scrollClosePaper', /@keyframes\s+scrollClosePaper/.test(css));
+
+  /* 底图：结构 + 参数（原图1772×1200，此前压到 .17 糊成一团） */
+  check('封面底图仍是那张水墨中国地图', !!bg
+    && /board_map\.png$/.test(bg.getAttribute('src') || ''), bg ? bg.getAttribute('src') : '-');
+  check('底图有一层独立的米色纱 .intro-mapveil', !!veil);
+  const op = bg ? parseFloat(getComputedStyle(bg).opacity) : 0;
+  check('底图不透明度已提高（≥0.3，原为 .17）', op >= 0.3, 'opacity=' + op);
+  /* 底图与纱必须不吃点击，否则会挡住开篇的按钮 */
+  check('底图 pointer-events:none（不吃点击）',
+    !!bg && getComputedStyle(bg).pointerEvents === 'none');
+  /* 宣纸柔化层：托住文字区，介于「看得清」与「不糊」之间 */
+  const pw = d.querySelector('.intro-paperwash');
+  check('有宣纸柔化层 .intro-paperwash', !!pw && getComputedStyle(pw).pointerEvents === 'none');
+  /* ⚠️ 封面上的按钮/文字不许有透明底：它们压在米色地图底纹上，
+     半透明色（var(--panel-hi) 之类）会把山峦透上来，看着像没上色。 */
+  {
+    const alphaOf = (el) => {
+      const cs = w.getComputedStyle(el);
+      const m = /rgba?\(([^)]+)\)/.exec(cs.backgroundColor);
+      const p = m ? m[1].split(',') : [];
+      return p.length > 3 ? parseFloat(p[3]) : 1;
+    };
+    const kbds = [...d.querySelectorAll('.intro-hint kbd')];
+    check('提示条里的 kbd 全部不透明（alpha=1）',
+      kbds.length === 4 && kbds.every(k => alphaOf(k) === 1),
+      kbds.map(k => k.textContent + ':' + alphaOf(k)).join(' '));
+    check('kbd 文字不透明（无 rgba 透明字色）',
+      kbds.every(k => !/^rgba\(.*,\s*0?\.\d+\)$/.test(w.getComputedStyle(k).color)),
+      kbds.length ? w.getComputedStyle(kbds[0]).color : '-');
+  }
+
+  /* 按钮组已挪到匾额正下方，且模式切换已从封面移除（2026-10-18） */
+  check('封面已移除模式切换按钮 #intro-modes（入口统一到顶栏 #mode-seg）',
+    !d.getElementById('intro-modes'));
+  {
+    const pl = d.querySelector('.intro-plaque').getBoundingClientRect();
+    const go = d.querySelector('.intro-go').getBoundingClientRect();
+    const sl = d.querySelector('.intro-slogans').getBoundingClientRect();
+    check('按钮组在匾额下方、宣传语上方',
+      go.top >= pl.bottom - 2 && sl.top >= go.bottom - 2,
+      `匾额底${Math.round(pl.bottom)} 按钮${Math.round(go.top)}~${Math.round(go.bottom)} 标语顶${Math.round(sl.top)}`);
+    check('按钮组水平居中（不偏左/右）',
+      Math.abs((go.left + go.right) / 2 - (pl.left + pl.right) / 2) <= 4,
+      `按钮中${Math.round((go.left+go.right)/2)} 匾额中${Math.round((pl.left+pl.right)/2)}`);
+  }
+
+  /* 行为：__intro.openAbout / closeAbout（页面此刻是主体，卷轴仍能开合） */
+  w.__intro.openAbout();
+  check('openAbout() 显示卷轴', sc.hidden === false
+    && w.__intro.aboutOpen === true);
+  check('打开后挂 opening 类（触发开卷动画）',
+    sc.classList.contains('opening'), sc.className);
+  w.__intro.closeAbout();
+  check('closeAbout() 挂 closing 类（走收卷动画，不是直接消失）',
+    sc.classList.contains('closing') && !sc.classList.contains('opening'), sc.className);
+  check('closeAbout() 当帧还没 hidden（留时间放动画）', sc.hidden === false);
+  await new Promise(r=>setTimeout(r,600));
+  check('动画结束后卷轴真的 hidden 且清掉 class',
+    sc.hidden === true && sc.className === 'scroll-layer', `hidden=${sc.hidden} cls="${sc.className}"`);
+ } catch(err){ check('第33 节无异常', false, (err && err.message) || String(err)); }
+}
+
+say(`\n=== ${fails===0?'全部通过 ✓':fails+' 项失败 ✗'} ===`);
+document.title = fails===0?'UITEST-OK':'UITEST-FAIL-'+fails;
+function process(){ if(fails>0) throw new Error('fail'); }
+</script>
+</body>
+</html>
