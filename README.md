@@ -7,7 +7,7 @@
 纯静态网页，**零依赖、零构建、无后端**：原生 HTML + CSS + ES Module，
 把目录丢到任意静态服务器（或 GitHub Pages）即可游玩。
 
-![开篇封面](docs/screenshots/cover.png)
+![开篇封面](docs/screenshots/cover.jpg)
 
 ---
 
@@ -27,6 +27,8 @@ python -m http.server 8932
 > ⚠️ 改完代码刷新后如果行为没变，是浏览器启发式缓存了 JS 模块。
 > 用 `serve.py`（它给每个响应加 `Cache-Control: no-cache`）能彻底避免「新 main.js + 旧 engine.js」的混搭假 bug。
 
+![主界面](docs/screenshots/home.jpg)
+
 ---
 
 ## 玩法一览
@@ -45,7 +47,7 @@ python -m http.server 8932
 - **种植** —— 用种子卡在自有土地上种作物，按生育期推进
 - **收获售卖** —— 作物成熟后收钱，钱可以继续买地、买种子、买改良卡
 
-![主棋盘](docs/screenshots/board.png)
+![主棋盘](docs/screenshots/board.jpg)
 
 ### 两种对局模式
 
@@ -56,7 +58,7 @@ python -m http.server 8932
 
 单机模式下真人先手（`G.turn = HUMAN_SEAT`），否则选了非 A 部落时一开局就得干等三个电脑各走完。
 
-![开局顺序弹窗](docs/screenshots/order.png)
+![开局顺序弹窗](docs/screenshots/order.jpg)
 
 ---
 
